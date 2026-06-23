@@ -158,10 +158,11 @@ void Renderer::renderScene(const RenderContext& render_context) {
     glm::mat4 view       = render_context.camera->lookAt();
     glm::mat4 projection = glm::perspective(
         glm::radians(render_context.camera->fov),
-        (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, 100.f);
+        (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, 1000.f);
 
     // Set shader variables here
     shader_lib.get("objects").use();
+    shader_lib.get("objects").setFloat("side_length", Block::side_length);
     shader_lib.get("objects").setMat("view", view);
     shader_lib.get("objects").setMat("projection", projection);
 
@@ -170,6 +171,7 @@ void Renderer::renderScene(const RenderContext& render_context) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     // Call object draw functions
     for (unsigned int i = 0; i < render_context.chunks_to_be_rendered.size(); ++i) {
+        if (render_context.chunks.count(render_context.chunks_to_be_rendered[i]) == 0) { continue; }
         render_context.chunks.at(render_context.chunks_to_be_rendered[i]).draw(shader_lib.get("objects"));
     }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

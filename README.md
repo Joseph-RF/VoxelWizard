@@ -28,10 +28,22 @@ This project was built with the following third party dependencies:
 
 For Windows:
 ```bash
-git clone https://github.com/Joseph-RF/OpenGL-ProjectTemplate.git
-cd OpenGL_CameraAndShaderClass
+git clone https://github.com/Joseph-RF/VoxelWizard
+cd VoxelWizard
 mkdir build
 cd .\build\
 cmake ..
 cmake --build .
 ```
+
+## Sources:
+
+* [Voxel World Optimisations](https://vercidium.com/blog/voxel-world-optimisations/)
+Vericidium article on general optimisations for voxel engine
+* [Let's Make a Voxel Engine](https://sites.google.com/site/letsmakeavoxelengine/home?authuser=0)
+* [Meshing in a Minecraft Game](https://0fps.net/2012/06/30/meshing-in-a-minecraft-game/)
+More optimisations
+* [Voxel Engine in a Weekend](https://daymare.net/blogs/voxel-engine-in-a-weekend/)
+Article for getting started on a voxel engine. At the end of the article there are a lot of
+pointers on how to improve it
+* [General Youtube Search for optimisations](https://www.youtube.com/results?search_query=voxel+engine+optimisations)

@@ -3,6 +3,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <future>
+#include <chrono>
+
 #include "camera.hpp"
 #include "glfwwindowmanager.hpp"
 #include "renderer.hpp"
@@ -44,10 +47,27 @@ private:
     // Game data
     std::unordered_map<ChunkPos, Chunk, HashFunction> chunks;
     std::vector<ChunkPos> chunks_to_be_rendered;
-    int render_distance = 2;
-    int mesh_distance = 3;
-    int chunk_distance = 4;
-    ChunkPos current_chunk_pos;
+    int render_distance = 4;
+    int mesh_distance = 4;
+    int chunk_distance = 6;
+    ChunkPos current_chunk_pos{10, 0, 10};
+
+    // ----- Concurrency -----
+    // Queues of things that need to be created
+    std::queue<ChunkPos> chunk_creation_queue_main; // Chunks that need to be created. For main thread
+    std::queue<ChunkPos> chunk_creation_queue_helper; // List of chunks to be created sent to the helper thread
+    std::vector<Chunk> helper_created_chunks; // Chunks created by the helper thread to be passed to main thread
+
+    std::queue<ChunkPos> chunk_vertex_creation_queue_main; // Chunks whose vertices need to be created. For main thread
+    std::queue<ChunkPos> chunk_vertex_creation_queue_helper; // List of chunks who need vertices created sent to helper
+
+    std::queue<ChunkPos> chunk_mesh_creation_queue; // Chunk meshes to be created by the main thread
+
+    std::queue<ChunkPos> chunk_deletion_queue; // Chunks that need to be deleted. Run when helper thread is sleeping
+    std::queue<ChunkPos> chunk_mesh_deletion_queue; // Chunk meshes that need to be deleted. Ditto above.
+
+    std::future<void> helper_thread;
+    std::future_status helper_thread_status;
 
     // Initialising functions
     bool init();
@@ -59,15 +79,28 @@ private:
     void update();
     void checkCurrentChunk();
     void updateChunks();
+
+    void updateChunkQueues();
+    void updateChunkCreationQueue();
+    void updateChunkMeshCreationQueues();
+
+    // Run through creation queues
+    void swapCreationQueues();
+    void consumeCreationQueues(); // Run by helper thread
+    void consumeCreatedData(); // Run by main thread
+
+    // Run through deletion queues
+    void consumeDeletionQueues(); // Run by main thread
+
+    // Concurrency functions
+    bool isHelperThreadFinished();
+    void tryHelperThreadLaunch();
+
     void updateChunksToBeRendered();
 
-    void updateChunkList();
-    void updateMeshList();
-    void updateRenderList();
-
-    void updateChunkBlockActivity(ChunkPos chunk_pos);
-    void updateBlockActivity(Block& block, int x_pos, int y_pos, int z_pos);
-    bool isBlockOpaque(int x_pos, int y_pos, int z_pos);
+    //void updateChunkBlockActivity(Chunk& chunk);
+    //void updateBlockActivity(Block& block, int x_pos, int y_pos, int z_pos);
+    //bool isBlockOpaque(int x_pos, int y_pos, int z_pos);
 
     void runActions();
 
