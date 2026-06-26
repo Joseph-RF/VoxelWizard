@@ -112,6 +112,12 @@ void App::updateChunks() {
     // Fill this in when chunk edition is added
 }
 
+void App::updateChunkEdgeOccupancy(Chunk& chunk) {
+    // Start with the chunk on the left (-x)
+    ChunkPos chunk_pos{ chunk.chunk_pos.x - 1, chunk.chunk_pos.y, chunk.chunk_pos.z };
+    // TODO: Finish the rest of this function
+}
+
 void App::updateChunkQueues() {
     updateChunkCreationQueue();
     updateChunkMeshCreationQueues();
@@ -206,7 +212,7 @@ void App::consumeCreationQueues() {
     }
     // Update the block activity for all the created chunks
     for (Chunk& chunk : helper_created_chunks) {
-        //updateChunkBlockActivity(chunk);
+        updateChunkEdgeOccupancy(chunk);
     }
 
     // Chunk vertex creation
@@ -298,96 +304,6 @@ void App::updateChunksToBeRendered() {
         }
     }
 }
-
-/*
-void App::updateChunkBlockActivity(Chunk& chunk) {
-    // Go through the chunks blocks and see if any blocks need to have their activity updated
-    for (int i = 0; i < Chunk::CHUNK_SIZE; ++i) {
-        for (int j = 0; j < Chunk::CHUNK_SIZE; ++j) {
-            for (int k = 0; k < Chunk::CHUNK_SIZE; ++k) {
-                // TODO: Accessing things that shoudln't be here. Error will occur with chunks.at(chunk_pos) instead of chunks[chunk_pos]
-                updateBlockActivity(chunk.blocks[i + j * Chunk::CHUNK_SIZE + k * Chunk::CHUNK_SIZE_SQ],
-                    Chunk::CHUNK_SIZE * chunk.chunk_pos.x + i, Chunk::CHUNK_SIZE * chunk.chunk_pos.y + j,
-                    Chunk::CHUNK_SIZE * chunk.chunk_pos.z + k);
-            }
-        }
-    }
-}
-
-void App::updateBlockActivity(Block& block, int x_pos, int y_pos, int z_pos) {
-
-    if (x_pos == -15 && y_pos == 3 && z_pos == 2) {
-        std::cout << "Halt" << std::endl;
-    }
-
-    if (!isBlockOpaque(x_pos - 1, y_pos, z_pos)) {
-        block.setActive(true);
-        return;
-    }
-    if (!isBlockOpaque(x_pos + 1, y_pos, z_pos)) {
-        block.setActive(true);
-        return;
-    }
-    if (!isBlockOpaque(x_pos, y_pos - 1, z_pos)) {
-        block.setActive(true);
-        return;
-    }
-    if (!isBlockOpaque(x_pos, y_pos + 1, z_pos)) {
-        block.setActive(true);
-        return;
-    }
-    if (!isBlockOpaque(x_pos, y_pos, z_pos - 1)) {
-        block.setActive(true);
-        return;
-    }
-    if (!isBlockOpaque(x_pos, y_pos, z_pos + 1)) {
-        block.setActive(true);
-        return;
-    }
-
-    block.setActive(false);
-}
-
-bool App::isBlockOpaque(int x_pos, int y_pos, int z_pos) {
-
-    // TODO: Make sure the logic for finding the x, y and z index are correct
-
-    int x = x_pos % Chunk::CHUNK_SIZE;
-    int y = y_pos % Chunk::CHUNK_SIZE;
-    int z = z_pos % Chunk::CHUNK_SIZE;
-
-    if (x_pos < 0) {
-        x = Chunk::CHUNK_SIZE + x;
-        x = x % Chunk::CHUNK_SIZE;
-    }
-    if (y_pos < 0) {
-        y = Chunk::CHUNK_SIZE + y;
-        y = y % Chunk::CHUNK_SIZE;
-    }
-    if (z_pos < 0) {
-        z = Chunk::CHUNK_SIZE + z;
-        z = z % Chunk::CHUNK_SIZE;
-    }
-
-    ChunkPos chunk_pos = getChunkPos(x_pos, y_pos, z_pos);
-
-    if (chunks.count(chunk_pos) > 0) {
-        if (chunks[chunk_pos].block_opacity[y + z * Chunk::CHUNK_SIZE] & (1 << x)) {
-            return true;
-        }
-    }
-    // Look for chunk in helper_created_chunks as well
-    for (Chunk& chunk : helper_created_chunks) {
-        if (chunk.chunk_pos == chunk_pos) {
-            if (chunk.block_opacity[y + z * Chunk::CHUNK_SIZE] & (1 << x)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-*/
 
 void App::runActions() {
     for (; !event_manager->events.empty(); event_manager->events.pop()) {

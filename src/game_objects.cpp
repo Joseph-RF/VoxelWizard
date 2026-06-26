@@ -136,6 +136,9 @@ Chunk::Chunk() {
             }
         }
     }
+
+    // Add the occupancy data of neighbouring chunks
+
 }
 
 Chunk::Chunk(ChunkPos chunk_pos) : chunk_pos(chunk_pos) {
@@ -155,9 +158,9 @@ Chunk::Chunk(ChunkPos chunk_pos) : chunk_pos(chunk_pos) {
                 // Storing the occupancy of blocks in the three arrays for the three directions
                 // Adding 1 bit on either side for padding
                 // Will fill left to right
-                block_occupancy_x[j + k * CHUNK_SIZE] |= (bit << (CHUNK_SIZE - i)); // Bits on the left represent blocks on the left
-                block_occupancy_y[i + k * CHUNK_SIZE] |= (bit << (CHUNK_SIZE - j)); // Bits on the left represent blocks on the bottom
-                block_occupancy_z[i + j * CHUNK_SIZE] |= (bit << (k + 1)); // Bits on the left represent blocks at the front
+                block_occupancy_x[j + k * CHUNK_SIZE] |= (bit << (CHUNK_SIZE - i)); // Bits on the left represent blocks on the left -x
+                block_occupancy_y[i + k * CHUNK_SIZE] |= (bit << (CHUNK_SIZE - j)); // Bits on the left represent blocks on the bottom -y
+                block_occupancy_z[i + j * CHUNK_SIZE] |= (bit << (k + 1)); // Bits on the left represent blocks at the front +z
             }
         }
     }
@@ -417,6 +420,54 @@ void Chunk::generateMesh() {
     mesh = std::make_unique<Mesh>(vertices, indices);
 
     mesh_generated = true;
+}
+
+void Chunk::padOccupancy(const Chunk& source, ChunkNeighbour neighbour_position) {
+
+    // TODO: There is for sure a better way of implementing this
+
+    switch (neighbour_position) {
+    case ChunkNeighbour::LEFT:
+        // If neighbour position is -x, it is on the left of this chunk.
+        // Want the occupancy data of right edge of the neighbour
+        for (int i = 0; i < CHUNK_SIZE_SQ; ++i) {
+            this->block_occupancy_x[i] |= (source.block_occupancy_x[i] & (1 << 1)) << (CHUNK_SIZE);
+        }
+        break;
+    case ChunkNeighbour::RIGHT:
+        // If neigbour position is +x, it is on the right of the chunk.
+        // Want the occupancy data of the left edge of the neighbour
+        for (int i = 0; i < CHUNK_SIZE_SQ; ++i) {
+            this->block_occupancy_x[i] |= (source.block_occupancy_x[i] & (1 << CHUNK_SIZE)) >> (CHUNK_SIZE);
+        }
+        break;
+    case ChunkNeighbour::BELOW:
+        // If neighbour is -y, same as -x
+        for (int i = 0; i < CHUNK_SIZE_SQ; ++i) {
+            this->block_occupancy_y[i] |= (source.block_occupancy_y[i] & (1 << 1)) << (CHUNK_SIZE);
+        }
+        break;
+    case ChunkNeighbour::ABOVE:
+        // If neighbour is +y, same as +x
+        for (int i = 0; i < CHUNK_SIZE_SQ; ++i) {
+            this->block_occupancy_y[i] |= (source.block_occupancy_y[i] & (1 << CHUNK_SIZE)) >> (CHUNK_SIZE);
+        }
+        break;
+    case ChunkNeighbour::BEHIND:
+        // If neighbour is -z, same as +x
+        for (int i = 0; i < CHUNK_SIZE_SQ; ++i) {
+            this->block_occupancy_z[i] |= (source.block_occupancy_z[i] & (1 << CHUNK_SIZE)) >> (CHUNK_SIZE);
+        }
+        break;
+    case ChunkNeighbour::IN_FRONT:
+        // If neighbour is +z, same as -x
+        for (int i = 0; i < CHUNK_SIZE_SQ; ++i) {
+            this->block_occupancy_z[i] |= (source.block_occupancy_z[i] & (1 << 1)) << (CHUNK_SIZE);
+        }
+        break;
+    default:
+        std::cout << "What? How did this happen?" << std::endl;
+    }
 }
 
 void Chunk::swapVertexBuffers() {

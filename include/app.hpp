@@ -79,6 +79,7 @@ private:
     void update();
     void checkCurrentChunk();
     void updateChunks();
+    void updateChunkEdgeOccupancy(Chunk& chunk);
 
     void updateChunkQueues();
     void updateChunkCreationQueue();
@@ -97,10 +98,6 @@ private:
     void tryHelperThreadLaunch();
 
     void updateChunksToBeRendered();
-
-    //void updateChunkBlockActivity(Chunk& chunk);
-    //void updateBlockActivity(Block& block, int x_pos, int y_pos, int z_pos);
-    //bool isBlockOpaque(int x_pos, int y_pos, int z_pos);
 
     void runActions();
 

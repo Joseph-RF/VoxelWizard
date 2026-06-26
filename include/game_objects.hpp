@@ -13,6 +13,15 @@ enum class BlockType {
     Air
 };
 
+enum class ChunkNeighbour {
+    LEFT, // -X
+    RIGHT, // +X
+    BELOW, // -Y
+    ABOVE, // +Y
+    BEHIND, // -Z
+    IN_FRONT // +Z
+};
+
 class Block {
 public:
     Block();
@@ -98,6 +107,8 @@ public:
     void generateVertices(); // Vertex data created here
     void generateMesh(); // Buffers sent to GPU here (OpenGL call)
     
+    void padOccupancy(const Chunk& source, ChunkNeighbour neighbour_position);
+
     void swapVertexBuffers();
     
     void destroyMesh();
