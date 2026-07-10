@@ -9,7 +9,7 @@
 
 struct RenderContext {
     // Throw objects to be rendered in here
-    Camera* camera;
+    Camera& camera;
     std::unordered_map<ChunkPos, Chunk, HashFunction>& chunks;
     std::vector<ChunkPos>& chunks_to_be_rendered;
 };
@@ -30,7 +30,7 @@ private:
     void initFramebuffers();
     void initScreenQuad();
 
-    void renderPrep(Camera* camera);
+    void renderPrep(Camera& camera);
     void renderScene(const RenderContext& render_context);
     void renderScreen();
 

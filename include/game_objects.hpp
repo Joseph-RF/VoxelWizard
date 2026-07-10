@@ -22,6 +22,8 @@ enum class ChunkNeighbour {
     IN_FRONT // +Z
 };
 
+ChunkNeighbour reverseChunkNeighbour(ChunkNeighbour chunk_neighbour);
+
 class Block {
 public:
     Block();
@@ -104,10 +106,13 @@ public:
     void update(float dt);
     void draw(Shader shader);
 
+    void setDirty(bool dirty);
+
     void generateVertices(); // Vertex data created here
     void generateMesh(); // Buffers sent to GPU here (OpenGL call)
+    void refreshMesh();
     
-    void padOccupancy(const Chunk& source, ChunkNeighbour neighbour_position);
+    void padOccupancy(const Chunk& source, const ChunkNeighbour neighbour_position);
 
     void swapVertexBuffers();
     
@@ -137,7 +142,6 @@ private:
 
     bool dirtied = true;
 
-    void generateCube(int x, int y, int z);
     unsigned int addVertex(glm::i32vec3 position, glm::vec3 colour);
     void addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2);
 };

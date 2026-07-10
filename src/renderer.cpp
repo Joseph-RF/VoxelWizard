@@ -145,7 +145,7 @@ void Renderer::processScreenResize(int new_window_width, int new_window_height) 
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void Renderer::renderPrep(Camera* camera) {
+void Renderer::renderPrep(Camera& camera) {
     // Render to multisample framebuffer to write to multisample texture
     glBindFramebuffer(GL_FRAMEBUFFER, multisample_fbo);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -155,9 +155,9 @@ void Renderer::renderPrep(Camera* camera) {
 
 void Renderer::renderScene(const RenderContext& render_context) {
     // View and projection matrices won't change between objects
-    glm::mat4 view       = render_context.camera->lookAt();
+    glm::mat4 view       = render_context.camera.lookAt();
     glm::mat4 projection = glm::perspective(
-        glm::radians(render_context.camera->fov),
+        glm::radians(render_context.camera.fov),
         (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, 1000.f);
 
     // Set shader variables here

@@ -5,6 +5,32 @@
 #include <array>
 #include <stddef.h>
 
+ChunkNeighbour reverseChunkNeighbour(ChunkNeighbour chunk_neighbour) {
+    switch (chunk_neighbour) {
+    case ChunkNeighbour::LEFT:
+        return ChunkNeighbour::RIGHT;
+        break;
+    case ChunkNeighbour::RIGHT:
+        return ChunkNeighbour::LEFT;
+        break;
+    case ChunkNeighbour::BELOW:
+        return ChunkNeighbour::ABOVE;
+        break;
+    case ChunkNeighbour::ABOVE:
+        return ChunkNeighbour::BELOW;
+        break;
+    case ChunkNeighbour::BEHIND:
+        return ChunkNeighbour::IN_FRONT;
+        break;
+    case ChunkNeighbour::IN_FRONT:
+        return ChunkNeighbour::BEHIND;
+        break;
+    default:
+        std::cout << "How did this get here?" << std::endl;
+        return ChunkNeighbour::LEFT;
+    }
+}
+
 std::map<BlockType, glm::vec3> Block::block_type_colours {
     {BlockType::Air, {1.0, 1.0, 1.0}}, // Air (shouldn't be drawn in the first place
     {BlockType::Grass, {0.15, 0.6, 0.0}}
@@ -136,9 +162,6 @@ Chunk::Chunk() {
             }
         }
     }
-
-    // Add the occupancy data of neighbouring chunks
-
 }
 
 Chunk::Chunk(ChunkPos chunk_pos) : chunk_pos(chunk_pos) {
@@ -168,7 +191,7 @@ Chunk::Chunk(ChunkPos chunk_pos) : chunk_pos(chunk_pos) {
 
 Chunk::Chunk(Chunk &&chunk) noexcept {
 
-    std::cout << "Move constructor called" << std::endl;
+    //std::cout << "Move constructor called" << std::endl;
 
     this->blocks = std::move(chunk.blocks);
     this->block_occupancy_x = std::move(chunk.block_occupancy_x);
@@ -194,7 +217,7 @@ Chunk::Chunk(Chunk &&chunk) noexcept {
 
 Chunk& Chunk::operator=(Chunk &&chunk) noexcept {
 
-    std::cout << "Move assignment operator called" << std::endl;
+    //std::cout << "Move assignment operator called" << std::endl;
 
     if (this == &chunk) {
         return *this;
@@ -241,6 +264,10 @@ void Chunk::draw(Shader shader) {
 
     glDrawElements(GL_TRIANGLES, mesh->indices_count, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+}
+
+void Chunk::setDirty(bool dirty) {
+    this->dirtied = dirty;
 }
 
 void Chunk::generateVertices() {
@@ -422,7 +449,12 @@ void Chunk::generateMesh() {
     mesh_generated = true;
 }
 
-void Chunk::padOccupancy(const Chunk& source, ChunkNeighbour neighbour_position) {
+void Chunk::refreshMesh() {
+    std::unique_ptr<Mesh> temp_mesh = std::make_unique<Mesh>(vertices, indices);
+    mesh = std::move(temp_mesh);
+}
+
+void Chunk::padOccupancy(const Chunk& source, const ChunkNeighbour neighbour_position) {
 
     // TODO: There is for sure a better way of implementing this
 
@@ -484,45 +516,6 @@ void Chunk::destroyMesh() {
     mesh_generated = false;
     vertices_generated = false;
     dirtied = true;
-}
-
-void Chunk::generateCube(int x, int y, int z) {
-
-    // Vertices
-    glm::i32vec3 p0{ x, y + 1, z };
-    glm::i32vec3 p1{ x, y, z };
-    glm::i32vec3 p2{ x + 1, y + 1, z };
-    glm::i32vec3 p3{ x + 1, y, z };
-    glm::i32vec3 p4{ x, y + 1, z + 1 };
-    glm::i32vec3 p5{ x, y, z + 1 };
-    glm::i32vec3 p6{ x + 1, y + 1, z + 1 };
-    glm::i32vec3 p7{ x + 1, y, z + 1 };
-
-    // Indices
-    unsigned int v0, v1, v2, v3, v4, v5, v6, v7;
-    glm::vec3 colour = Block::block_type_colours[blocks[x + y * CHUNK_SIZE + z * CHUNK_SIZE_SQ].getBlockType()];
-
-    v0 = addVertex(p0, colour);
-    v1 = addVertex(p1, colour);
-    v2 = addVertex(p2, colour);
-    v3 = addVertex(p3, colour);
-    v4 = addVertex(p4, colour);
-    v5 = addVertex(p5, colour);
-    v6 = addVertex(p6, colour);
-    v7 = addVertex(p7, colour);
-
-    addTriangleIndices(v0, v1, v2); // Front face triangle
-    addTriangleIndices(v1, v3, v2); // Front face triangle
-    addTriangleIndices(v1, v5, v3); // Bottom face triangle
-    addTriangleIndices(v5, v7, v3); // Bottom face triangle
-    addTriangleIndices(v4, v5, v0); // Left face triangle
-    addTriangleIndices(v5, v1, v0); // Left face triangle
-    addTriangleIndices(v6, v7, v4); // Back face triangle
-    addTriangleIndices(v7, v5, v4); // Back face triangle
-    addTriangleIndices(v4, v0, v6); // Top face triangle
-    addTriangleIndices(v0, v2, v6); // Top face triangle
-    addTriangleIndices(v2, v3, v6); // Right face triangle
-    addTriangleIndices(v3, v7, v6); // Right face triangle
 }
 
 unsigned int Chunk::addVertex(glm::i32vec3 vertex, glm::vec3 colour) {

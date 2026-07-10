@@ -19,9 +19,6 @@ App::App(int window_x, int window_y)
     last_mouse_xpos      = window_x / 2.f;
     last_mouse_ypos      = window_y / 2.f;
     mouse_pressed        = false;
-
-    // Camera
-    active_camera = &engine_camera;
 }
 
 App::~App() {}
@@ -49,24 +46,15 @@ bool App::init() {
         return false;
     }
 
-    // Initialise renderer
     renderer.init();
 
-    // Initialise static variables
-    initObjects();
-
-    // Initialise the scene
     initScene();
 
     return true;
 }
 
-void App::initObjects() {
-
-}
-
 void App::initScene() {
-    //createChunks();
+
 }
 
 void App::update() {
@@ -87,6 +75,7 @@ void App::update() {
     checkCurrentChunk();
     
     if (!helper_thread.valid() || isHelperThreadFinished()) {
+        promoteStaleChunks(); // Note: MUST come after the queues are refreshed in updateChunkQueues()
         swapCreationQueues();
     }
 
@@ -99,10 +88,10 @@ void App::update() {
 }
 
 void App::checkCurrentChunk() {
-    ChunkPos chunk_pos = getChunkPos(active_camera->pos);
+    ChunkPos chunk_pos = getChunkPos(camera.pos);
     if (!(chunk_pos == this->current_chunk_pos)) {
-        //this->current_chunk_pos = chunk_pos;
-        this->current_chunk_pos = ChunkPos(0, 0, 0);
+        this->current_chunk_pos = chunk_pos;
+        //this->current_chunk_pos = ChunkPos(0, 0, 0);
         updateChunkQueues();
         updateChunksToBeRendered();
     }
@@ -113,9 +102,40 @@ void App::updateChunks() {
 }
 
 void App::updateChunkEdgeOccupancy(Chunk& chunk) {
-    // Start with the chunk on the left (-x)
-    ChunkPos chunk_pos{ chunk.chunk_pos.x - 1, chunk.chunk_pos.y, chunk.chunk_pos.z };
-    // TODO: Finish the rest of this function
+
+    static const std::array<std::pair<ChunkNeighbour, ChunkPos>, 6> chunk_neighbour_positions{ {
+        {ChunkNeighbour::LEFT, ChunkPos{-1, 0, 0}},
+        {ChunkNeighbour::RIGHT, ChunkPos{1, 0, 0}},
+        {ChunkNeighbour::BELOW, ChunkPos{0, -1, 0}},
+        {ChunkNeighbour::ABOVE, ChunkPos{0, 1, 0}},
+        {ChunkNeighbour::BEHIND, ChunkPos{0, 0, -1}},
+        {ChunkNeighbour::IN_FRONT, ChunkPos{0, 0, 1}},
+    } };
+
+    // Go through the chunk_neighbour positions to pad the occupancy data of chunk
+    for (const auto& pair : chunk_neighbour_positions) {
+        ChunkPos chunk_pos{ 
+            chunk.chunk_pos.x + pair.second.x, 
+            chunk.chunk_pos.y + pair.second.y, 
+            chunk.chunk_pos.z + pair.second.z 
+        };
+
+        // Search in the chunks hash map
+        if (chunks.count(chunk_pos) > 0) {
+            chunk.padOccupancy(chunks.at(chunk_pos), pair.first);
+            // If the neighbour already existed in data, update its occupancy as well
+            chunks.at(chunk_pos).padOccupancy(chunk, reverseChunkNeighbour(pair.first));
+            
+            // Need to update this chunks mesh now
+            chunks.at(chunk_pos).setDirty(false);
+            stale_chunk_vertices_helper.push(chunk_pos);
+            stale_mesh_creation_queue.push(chunk_pos);
+        }
+        // Search in the chunks that are waiting to be moved to the hash map
+        else if (chunks_on_helper_thread.find(chunk_pos) != chunks_on_helper_thread.end()) {
+            chunk.padOccupancy(helper_created_chunks[chunks_on_helper_thread.at(chunk_pos)], pair.first);
+        }
+    }
 }
 
 void App::updateChunkQueues() {
@@ -172,7 +192,7 @@ void App::updateChunkMeshCreationQueues() {
                 chunk_mesh_creation_queue.push(chunk_pos);
                 continue;
             }
-            // If a chunk at chunk_pos doesn't have a generated mesh, add to the appropriate generation queues
+            // If a chunk at chunk_pos doesn't have a generated mesh, add to the appropriate creation queues
             if (!chunks.at(chunk_pos).mesh_generated) {
                 chunk_vertex_creation_queue_main.push(chunk_pos);
                 chunk_mesh_creation_queue.push(chunk_pos);
@@ -197,20 +217,26 @@ void App::swapCreationQueues() {
     std::queue<ChunkPos>().swap(chunk_vertex_creation_queue_main); // Empty queue on main
 }
 
-void App::consumeCreationQueues() {
-    // Chunks creation
+void App::promoteStaleChunks() {
+    while (!stale_chunk_vertices_helper.empty()) {
+        chunk_vertex_creation_queue_main.push(stale_chunk_vertices_helper.front());
+        stale_chunk_vertices_helper.pop();
+    }
+}
 
-    // TODO: Consider adding a "global" chunk search including both Chunks map and chunks that 
-    // have been generated but not yet added
+void App::consumeCreationQueues() {
+    // Create chunks that were in the creation queue as well as the vertices and indices of 
+    // chunks that are in the mesh creation queue
 
     while (!chunk_creation_queue_helper.empty()) {
+        // Check that the chunk does not already exist
         if (chunks.count(chunk_creation_queue_helper.front()) == 0) {
-            // Final check that this chunk does not already exist
             helper_created_chunks.emplace_back(chunk_creation_queue_helper.front());
+            chunks_on_helper_thread.emplace(chunk_creation_queue_helper.front(), helper_created_chunks.size() - 1);
         }
         chunk_creation_queue_helper.pop();
     }
-    // Update the block activity for all the created chunks
+    // Update the occupancy arrays to reflect occupancy data of neighbouring chunks
     for (Chunk& chunk : helper_created_chunks) {
         updateChunkEdgeOccupancy(chunk);
     }
@@ -220,20 +246,19 @@ void App::consumeCreationQueues() {
 
         ChunkPos chunk_pos = chunk_vertex_creation_queue_helper.front();
         
-        // Don't need to do a dirtied? check since it is done in generateVertices()
+        // Don't need to do a dirtied check since it is done in generateVertices()
 
+        // Search in chunks hash map
         if (chunks.count(chunk_pos) > 0) {
             if (!chunks.at(chunk_pos).mesh_generated && !chunks.at(chunk_pos).vertices_generated) {
                 chunks.at(chunk_pos).generateVertices();
             }
         }
-        else {
-            for (Chunk& chunk : helper_created_chunks) {
-                if (chunk.chunk_pos == chunk_pos) {
-                    if (!chunk.mesh_generated && !chunk.vertices_generated) {
-                        chunk.generateVertices();
-                    }
-                }
+        // Search in chunks still sitting in the helper thread array
+        else if (chunks_on_helper_thread.count(chunk_pos) > 0){
+            Chunk& chunk = helper_created_chunks[chunks_on_helper_thread.at(chunk_pos)];
+            if (!chunk.mesh_generated && !chunk.vertices_generated) {
+                chunk.generateVertices();
             }
         }
         chunk_vertex_creation_queue_helper.pop();
@@ -241,13 +266,16 @@ void App::consumeCreationQueues() {
 }
 
 void App::consumeCreatedData() {
-    // Pass to structures accessed by main thread
+    // Pass chunks constructed by the helper thread to the main chunk hash map
+    // Swap the back and front buffers containing newly made vertex and index data
+    // Construct the chunk meshes using the new vertex and index data
     for (Chunk& chunk : helper_created_chunks) {
         ChunkPos key = chunk.chunk_pos;
         chunks.try_emplace(key, std::move(chunk));
     }
     std::vector<Chunk>().swap(helper_created_chunks);
-    
+    std::unordered_map<ChunkPos, int, HashFunction>().swap(chunks_on_helper_thread);
+
     while (!chunk_mesh_creation_queue.empty()) {
         if (!chunks.at(chunk_mesh_creation_queue.front()).mesh_generated) {
             chunks.at(chunk_mesh_creation_queue.front()).swapVertexBuffers();
@@ -255,9 +283,18 @@ void App::consumeCreatedData() {
         }
         chunk_mesh_creation_queue.pop();
     }
+
+    // Update the stale meshes
+    while (!stale_mesh_creation_queue.empty()) {
+        if (chunks.count(stale_mesh_creation_queue.front()) > 0) {
+            chunks.at(stale_mesh_creation_queue.front()).refreshMesh();
+            stale_mesh_creation_queue.pop();
+        }
+    }
 }
 
 void App::consumeDeletionQueues() {
+    // Delete chunks and chunk meshes sent to the deletion queue
     // Check that the chunks exist before deleting them
     while (!chunk_mesh_deletion_queue.empty()) {
         if (chunks.count(chunk_mesh_deletion_queue.front()) > 0) {
@@ -314,22 +351,22 @@ void App::runActions() {
                                 event_manager->events.front().mouse_ypos);
             break;
         case Action::MOVE_FORWARD:
-            active_camera->processKeyboard(FORWARD, delta_time);
+            camera.processKeyboard(FORWARD, delta_time);
             break;
         case Action::MOVE_LEFT:
-            active_camera->processKeyboard(LEFT, delta_time);
+            camera.processKeyboard(LEFT, delta_time);
             break;
         case Action::MOVE_BACKWARD:
-            active_camera->processKeyboard(BACKWARD, delta_time);
+            camera.processKeyboard(BACKWARD, delta_time);
             break;
         case Action::MOVE_RIGHT:
-            active_camera->processKeyboard(RIGHT, delta_time);
+            camera.processKeyboard(RIGHT, delta_time);
             break;
         case Action::MOVE_UP:
-            active_camera->processKeyboard(UP, delta_time);
+            camera.processKeyboard(UP, delta_time);
             break;
         case Action::MOVE_DOWN:
-            active_camera->processKeyboard(DOWN, delta_time);
+            camera.processKeyboard(DOWN, delta_time);
             break;
         case Action::TURN: {
             float mouse_xoffset = event_manager->events.front().mouse_xpos - last_mouse_xpos;
@@ -338,7 +375,7 @@ void App::runActions() {
             last_mouse_ypos += mouse_yoffset;
 
             if (!first_mouse_movement) {
-                active_camera->processMouse(mouse_xoffset, mouse_yoffset);
+                camera.processMouse(mouse_xoffset, mouse_yoffset);
             } else {
                 first_mouse_movement = false;
             }
@@ -353,7 +390,7 @@ void App::runActions() {
             break;
         }
         case Action::ZOOM:
-            active_camera->processScroll(event_manager->events.front().scroll_x,
+            camera.processScroll(event_manager->events.front().scroll_x,
                                          event_manager->events.front().scroll_y);
             break;
         case Action::L_CLICK:
@@ -384,7 +421,7 @@ void App::render() {
     window_manager->newImGuiFrame();
 
     // Render scene
-    renderer.render(RenderContext{active_camera, chunks, chunks_to_be_rendered});
+    renderer.render(RenderContext{camera, chunks, chunks_to_be_rendered});
 
     // After drawing OpenGL objects, draw ImGUI
     renderImGUI();
@@ -405,11 +442,11 @@ void App::renderImGUI() {
     // -------------------------------------
     bool boolean = true;
     if (ImGui::BeginTabItem("Object Editor", &boolean, ImGuiTabItemFlags_None)) {
-        ImGui::InputFloat("x pos", &active_camera->pos.x, 0.25f, 1.0f,
+        ImGui::InputFloat("x pos", &camera.pos.x, 0.25f, 1.0f,
                   "%.2f");
-        ImGui::InputFloat("y pos", &active_camera->pos.y, 0.25f, 1.0f,
+        ImGui::InputFloat("y pos", &camera.pos.y, 0.25f, 1.0f,
           "%.2f");
-        ImGui::InputFloat("z pos", &active_camera->pos.z, 0.25f, 1.0f,
+        ImGui::InputFloat("z pos", &camera.pos.z, 0.25f, 1.0f,
           "%.2f");
         ImGui::Text("Modify the selected objects properties");
         ImGui::EndTabItem();
@@ -448,24 +485,6 @@ void App::processScreenResize(float new_window_x, float new_window_y) {
     window_y = static_cast<int>(new_window_y);
 
     renderer.processScreenResize(window_x, window_y);
-}
-
-void App::createChunks() {
-    // TODO: What if we only want to create SOME chunks. This way need to redo the whole thing
-    // For now will just do one layer of chunks (constant y)
-    for (int i = -render_distance; i <= render_distance; ++i) {
-        for (int k = -render_distance; k <= render_distance; ++k) {
-            ChunkPos chunk_pos = ChunkPos(current_chunk_pos.x + i, 0, current_chunk_pos.z + k);
-            if (chunks.count(chunk_pos) == 0) {
-                chunks.insert_or_assign(chunk_pos, Chunk(chunk_pos));
-            }
-        }
-    }
-    // Once all chunks have been created, update block visibilities and generate meshes
-    for (auto& element : chunks) {
-        //updateChunkBlockActivity(element.second);
-        element.second.generateMesh();
-    }
 }
 
 ChunkPos App::getChunkPos(int x_pos, int y_pos, int z_pos) {

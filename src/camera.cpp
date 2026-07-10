@@ -2,8 +2,8 @@
 
 Camera::Camera() {
 	speed = 5.0f;
-	pos = glm::vec3(0.0f, 0.0f, 3.0f);
-	front = glm::vec3(0.0f, 0.0f, -1.0f);
+	pos = glm::vec3(0.0f, 18.0f, 3.0f);
+	front = glm::vec3(0.0f, 18.0f, -1.0f);
 	up = glm::vec3(0.0f, 1.0f, 0.0f);
 	fov = 45.0f;
 

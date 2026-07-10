@@ -73,11 +73,10 @@ Not supposed to be very rigid and features will move from one planned update to 
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
 
-### [0.2.5]
+### [0.2.2]
 
 - Add occupancy data of a chunk's neighbour to a chunk when a neighbour is generated
 - Tidy up the code
-- Look into more efficient ways to construct the vertices of a chunk with colour data
 
 ### [0.3.0]
 
@@ -85,7 +84,12 @@ I suspect many changes won't be planned for entirely.
 - Terrain generation
 - Lighting
 
+### [0.3.5]
+
+- Look into more efficient ways to construct the vertices of a chunk with colour data
+
 ### [Future]
 
 Better debugging UI e.g. FPS counter, button to change polygon mode, better lighting, walking and jumping, construct arena / terrain, other physics, enemies,
-simple gameplay mechanics (shooting and damaging enemies + losing health)
+simple gameplay mechanics (shooting and damaging enemies + losing health). Changing occupancy data if chunks are
+modified. Changing occupancy data for neighbours of modified chunks.

@@ -5,6 +5,7 @@
 
 #include <future>
 #include <chrono>
+#include <utility>
 
 #include "camera.hpp"
 #include "glfwwindowmanager.hpp"
@@ -37,9 +38,7 @@ private:
     bool mouse_pressed;
 
     // Camera
-    Camera* active_camera;
-    Camera engine_camera;
-    Camera raytracer_camera;
+    Camera camera;
 
     // Renderer
     Renderer renderer;
@@ -49,7 +48,7 @@ private:
     std::vector<ChunkPos> chunks_to_be_rendered;
     int render_distance = 4;
     int mesh_distance = 4;
-    int chunk_distance = 6;
+    int chunk_distance = 4;
     ChunkPos current_chunk_pos{10, 0, 10};
 
     // ----- Concurrency -----
@@ -57,11 +56,14 @@ private:
     std::queue<ChunkPos> chunk_creation_queue_main; // Chunks that need to be created. For main thread
     std::queue<ChunkPos> chunk_creation_queue_helper; // List of chunks to be created sent to the helper thread
     std::vector<Chunk> helper_created_chunks; // Chunks created by the helper thread to be passed to main thread
+    std::unordered_map<ChunkPos, int, HashFunction> chunks_on_helper_thread; // Chunks yet to go to hash map
 
     std::queue<ChunkPos> chunk_vertex_creation_queue_main; // Chunks whose vertices need to be created. For main thread
     std::queue<ChunkPos> chunk_vertex_creation_queue_helper; // List of chunks who need vertices created sent to helper
+    std::queue<ChunkPos> stale_chunk_vertices_helper; // Queue of chunks whose vertices need to be updated
 
     std::queue<ChunkPos> chunk_mesh_creation_queue; // Chunk meshes to be created by the main thread
+    std::queue<ChunkPos> stale_mesh_creation_queue; // Queue of chunks whose meshes need to be re-made
 
     std::queue<ChunkPos> chunk_deletion_queue; // Chunks that need to be deleted. Run when helper thread is sleeping
     std::queue<ChunkPos> chunk_mesh_deletion_queue; // Chunk meshes that need to be deleted. Ditto above.
@@ -87,6 +89,7 @@ private:
 
     // Run through creation queues
     void swapCreationQueues();
+    void promoteStaleChunks();
     void consumeCreationQueues(); // Run by helper thread
     void consumeCreatedData(); // Run by main thread
 
@@ -112,7 +115,6 @@ private:
     void processScreenResize(float new_window_x, float new_window_y);
 
     // Game data functions
-    void createChunks();
     ChunkPos getChunkPos(int x_pos, int y_pos, int z_pos);
     ChunkPos getChunkPos(glm::vec3 pos);
 };
