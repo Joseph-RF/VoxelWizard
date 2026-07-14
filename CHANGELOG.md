@@ -10,6 +10,17 @@ In this section, I'll be writing the series of updates and changes of the projec
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
 
+### [0.2.2]
+
+Update 0.2.2 
+
+The aim primary aim was to update the meshes of chunks when neighbours were created. I thought this update wouldn't take as long but the challenge was a little bigger than I thought it would be and I was on holiday. Changes made were:
+- Add occupancy data of a chunk's neighbour to a chunk when a neighbour is generated.
+- Update the existing mesh of a chunk when the occupancy data is updated.
+- Use a hash map to keep track of the chunks that have been generated but are not yet in the primary hash map that stores all (most) chunks.
+- Tweak functions and function names.
+- Tidy up code a little
+
 ### [0.2.0]
 
 This update was originally intended to be numbered as "0.1.5" to represent a small update focused on performance and little else. While the focus has stayed consistent, the time and effort changed from "small".
@@ -72,11 +83,6 @@ Here will write a vague roadmap of the upcoming updates and changes to the proje
 Not supposed to be very rigid and features will move from one planned update to the next.
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
-
-### [0.2.2]
-
-- Add occupancy data of a chunk's neighbour to a chunk when a neighbour is generated
-- Tidy up the code
 
 ### [0.3.0]
 

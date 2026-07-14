@@ -68,14 +68,14 @@ void App::update() {
     // I.e. Add new chunks to the data, swap the vertex and index buffers, generate meshes
 
     if (isHelperThreadFinished()) {
-        consumeCreatedData();
-        consumeDeletionQueues();
+        integrateGeneratedChunks();
+        swapBuffersAndGenerateMeshes();
+        processDeletionQueues();
     }
 
     checkCurrentChunk();
     
     if (!helper_thread.valid() || isHelperThreadFinished()) {
-        promoteStaleChunks(); // Note: MUST come after the queues are refreshed in updateChunkQueues()
         swapCreationQueues();
     }
 
@@ -95,10 +95,6 @@ void App::checkCurrentChunk() {
         updateChunkQueues();
         updateChunksToBeRendered();
     }
-}
-
-void App::updateChunks() {
-    // Fill this in when chunk edition is added
 }
 
 void App::updateChunkEdgeOccupancy(Chunk& chunk) {
@@ -126,10 +122,9 @@ void App::updateChunkEdgeOccupancy(Chunk& chunk) {
             // If the neighbour already existed in data, update its occupancy as well
             chunks.at(chunk_pos).padOccupancy(chunk, reverseChunkNeighbour(pair.first));
             
-            // Need to update this chunks mesh now
-            chunks.at(chunk_pos).setDirty(false);
+            // Need to update the neighbouring chunk's mesh now
+            chunks.at(chunk_pos).setDirty(true);
             stale_chunk_vertices_helper.push(chunk_pos);
-            stale_mesh_creation_queue.push(chunk_pos);
         }
         // Search in the chunks that are waiting to be moved to the hash map
         else if (chunks_on_helper_thread.find(chunk_pos) != chunks_on_helper_thread.end()) {
@@ -217,20 +212,39 @@ void App::swapCreationQueues() {
     std::queue<ChunkPos>().swap(chunk_vertex_creation_queue_main); // Empty queue on main
 }
 
-void App::promoteStaleChunks() {
+void App::processCreationQueues() {
+    // Create chunks that were in the creation queue as well as the vertices and indices of 
+    // chunks that are in the mesh creation queue
+
+    refreshStaleChunkVertices();
+
+    generateChunks();
+
+    generateChunkVertices();
+}
+
+void App::refreshStaleChunkVertices() {
+    // Update the stale meshes
     while (!stale_chunk_vertices_helper.empty()) {
-        chunk_vertex_creation_queue_main.push(stale_chunk_vertices_helper.front());
+        ChunkPos chunk_pos = stale_chunk_vertices_helper.front();
+
+        // Don't need to do a dirtied check since it is done in generateVertices()
+
+        // Search in chunks hash map
+        if (chunks.count(chunk_pos) > 0) {
+            chunks.at(chunk_pos).generateVertices();
+            stale_mesh_creation_queue.push(chunk_pos);
+        }
+
         stale_chunk_vertices_helper.pop();
     }
 }
 
-void App::consumeCreationQueues() {
-    // Create chunks that were in the creation queue as well as the vertices and indices of 
-    // chunks that are in the mesh creation queue
-
+void App::generateChunks() {
     while (!chunk_creation_queue_helper.empty()) {
-        // Check that the chunk does not already exist
-        if (chunks.count(chunk_creation_queue_helper.front()) == 0) {
+        // Check that the chunk does not already exist anywhere
+        ChunkPos chunk_pos = chunk_creation_queue_helper.front();
+        if (chunks.count(chunk_pos) == 0 && chunks_on_helper_thread.count(chunk_pos) == 0) {
             helper_created_chunks.emplace_back(chunk_creation_queue_helper.front());
             chunks_on_helper_thread.emplace(chunk_creation_queue_helper.front(), helper_created_chunks.size() - 1);
         }
@@ -240,12 +254,13 @@ void App::consumeCreationQueues() {
     for (Chunk& chunk : helper_created_chunks) {
         updateChunkEdgeOccupancy(chunk);
     }
+}
 
-    // Chunk vertex creation
+void App::generateChunkVertices() {
     while (!chunk_vertex_creation_queue_helper.empty()) {
 
         ChunkPos chunk_pos = chunk_vertex_creation_queue_helper.front();
-        
+
         // Don't need to do a dirtied check since it is done in generateVertices()
 
         // Search in chunks hash map
@@ -255,7 +270,7 @@ void App::consumeCreationQueues() {
             }
         }
         // Search in chunks still sitting in the helper thread array
-        else if (chunks_on_helper_thread.count(chunk_pos) > 0){
+        else if (chunks_on_helper_thread.count(chunk_pos) > 0) {
             Chunk& chunk = helper_created_chunks[chunks_on_helper_thread.at(chunk_pos)];
             if (!chunk.mesh_generated && !chunk.vertices_generated) {
                 chunk.generateVertices();
@@ -265,16 +280,21 @@ void App::consumeCreationQueues() {
     }
 }
 
-void App::consumeCreatedData() {
+void App::integrateGeneratedChunks() {
     // Pass chunks constructed by the helper thread to the main chunk hash map
-    // Swap the back and front buffers containing newly made vertex and index data
-    // Construct the chunk meshes using the new vertex and index data
+    // Reset the structures used by helper thread to hold generated chunks
+    
     for (Chunk& chunk : helper_created_chunks) {
         ChunkPos key = chunk.chunk_pos;
         chunks.try_emplace(key, std::move(chunk));
     }
     std::vector<Chunk>().swap(helper_created_chunks);
     std::unordered_map<ChunkPos, int, HashFunction>().swap(chunks_on_helper_thread);
+}
+
+void App::swapBuffersAndGenerateMeshes() {
+    // Swap the back and front buffers containing newly made vertex and index data
+    // Construct the chunk meshes using the new vertex and index data
 
     while (!chunk_mesh_creation_queue.empty()) {
         if (!chunks.at(chunk_mesh_creation_queue.front()).mesh_generated) {
@@ -284,16 +304,18 @@ void App::consumeCreatedData() {
         chunk_mesh_creation_queue.pop();
     }
 
-    // Update the stale meshes
+    // Now swap buffers and generate meshes for chunks that had stale vertices and meshes
     while (!stale_mesh_creation_queue.empty()) {
         if (chunks.count(stale_mesh_creation_queue.front()) > 0) {
+            chunks.at(stale_mesh_creation_queue.front()).swapVertexBuffers();
             chunks.at(stale_mesh_creation_queue.front()).refreshMesh();
-            stale_mesh_creation_queue.pop();
         }
+        stale_mesh_creation_queue.pop();
     }
+
 }
 
-void App::consumeDeletionQueues() {
+void App::processDeletionQueues() {
     // Delete chunks and chunk meshes sent to the deletion queue
     // Check that the chunks exist before deleting them
     while (!chunk_mesh_deletion_queue.empty()) {
@@ -325,7 +347,7 @@ void App::tryHelperThreadLaunch() {
         }
 
         helper_thread = std::async(std::launch::async, [this]() {
-            consumeCreationQueues();
+            processCreationQueues();
         });
     }
 }

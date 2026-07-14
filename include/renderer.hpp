@@ -38,6 +38,9 @@ private:
     int window_width;
     int window_height;
 
+    // Projection properties
+    float far_plane;
+
     // Shaders
     ShaderLibrary shader_lib;
 

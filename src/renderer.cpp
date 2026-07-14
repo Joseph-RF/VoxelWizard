@@ -4,6 +4,8 @@ Renderer::Renderer(int window_width, int window_height)
     : window_width(window_width)
     , window_height(window_height) {
     // Initialise other variables
+    far_plane = 10000.f;
+    
     subsamples = 4;
 
     multisample_fbo  = 0;
@@ -158,7 +160,7 @@ void Renderer::renderScene(const RenderContext& render_context) {
     glm::mat4 view       = render_context.camera.lookAt();
     glm::mat4 projection = glm::perspective(
         glm::radians(render_context.camera.fov),
-        (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, 1000.f);
+        (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, far_plane);
 
     // Set shader variables here
     shader_lib.get("objects").use();

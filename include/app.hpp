@@ -6,6 +6,7 @@
 #include <future>
 #include <chrono>
 #include <utility>
+#include <memory>
 
 #include "camera.hpp"
 #include "glfwwindowmanager.hpp"
@@ -74,13 +75,11 @@ private:
     // Initialising functions
     bool init();
 
-    void initObjects();
     void initScene();
 
     // Updating functions
     void update();
     void checkCurrentChunk();
-    void updateChunks();
     void updateChunkEdgeOccupancy(Chunk& chunk);
 
     void updateChunkQueues();
@@ -89,12 +88,16 @@ private:
 
     // Run through creation queues
     void swapCreationQueues();
-    void promoteStaleChunks();
-    void consumeCreationQueues(); // Run by helper thread
-    void consumeCreatedData(); // Run by main thread
+    void processCreationQueues(); // Run by helper thread
+    void refreshStaleChunkVertices(); // Run by helper thread
+    void generateChunks(); // Run by helper thread
+    void generateChunkVertices(); // Run by helper thread
+
+    void integrateGeneratedChunks(); // Run by main thread
+    void swapBuffersAndGenerateMeshes(); // Run by main thread
 
     // Run through deletion queues
-    void consumeDeletionQueues(); // Run by main thread
+    void processDeletionQueues(); // Run by main thread
 
     // Concurrency functions
     bool isHelperThreadFinished();
