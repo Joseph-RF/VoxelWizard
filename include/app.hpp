@@ -45,30 +45,30 @@ private:
     Renderer renderer;
 
     // Game data
-    std::unordered_map<ChunkStackPos, ChunkStack, ChunkStackPosHashFunc> chunks;
-    std::vector<ChunkStackPos> chunk_stacks_to_be_rendered;
+    std::unordered_map<ColumnPos, Column, ColumnPosHashFunc> chunks;
+    std::vector<ColumnPos> columns_to_be_rendered;
     int render_distance = 4;
     int mesh_distance = 4;
     int chunk_distance = 4;
     //ChunkPos current_chunk_pos{10, 0, 10};
-    ChunkStackPos current_chunk_stack_pos{ 10, 10 };
+    ColumnPos current_column_pos{ 10, 10 };
 
     // ----- Concurrency -----
     // Queues of things that need to be created
-    std::queue<ChunkStackPos> chunk_stack_creation_queue_main; // Chunk stacks that need to be created. For main thread
-    std::queue<ChunkStackPos> chunk_stack_creation_queue_helper; // List of chunk stacks to be created sent to the helper thread
-    std::vector<ChunkStack> helper_created_chunk_stacks; // Chunk stacks created by the helper thread to be passed to main thread
-    std::unordered_map<ChunkStackPos, int, ChunkStackPosHashFunc> chunk_stacks_on_helper_thread; // Chunk stacks yet to go to hash map
+    std::queue<ColumnPos> column_creation_queue_main; // Chunk stacks that need to be created. For main thread
+    std::queue<ColumnPos> column_creation_queue_helper; // List of chunk stacks to be created sent to the helper thread
+    std::vector<Column> helper_created_columns; // Chunk stacks created by the helper thread to be passed to main thread
+    std::unordered_map<ColumnPos, int, ColumnPosHashFunc> columns_on_helper_thread; // Chunk stacks yet to go to hash map
 
-    std::queue<ChunkStackPos> chunk_stacks_vertex_creation_queue_main; // Chunk stacks whose vertices need to be created. For main thread
-    std::queue<ChunkStackPos> chunk_stacks_vertex_creation_queue_helper; // List of chunk stacks who need vertices created sent to helper
-    std::queue<ChunkStackPos> stale_chunk_stacks_vertices_helper; // Queue of chunk stacks whose vertices need to be updated
+    std::queue<ColumnPos> columns_vertex_creation_queue_main; // Chunk stacks whose vertices need to be created. For main thread
+    std::queue<ColumnPos> columns_vertex_creation_queue_helper; // List of chunk stacks who need vertices created sent to helper
+    std::queue<ColumnPos> stale_columns_vertices_helper; // Queue of chunk stacks whose vertices need to be updated
 
-    std::queue<ChunkStackPos> chunk_stack_mesh_creation_queue; // Chunk stacks where chunk meshes are to be created by the main thread
-    std::queue<ChunkStackPos> stale_mesh_creation_queue; // Queue of chunk stacks whose chunk meshes need to be re-made
+    std::queue<ColumnPos> column_mesh_creation_queue; // Chunk stacks where chunk meshes are to be created by the main thread
+    std::queue<ColumnPos> stale_mesh_creation_queue; // Queue of chunk stacks whose chunk meshes need to be re-made
 
-    std::queue<ChunkStackPos> chunk_stack_deletion_queue; // Chunk stacks that need to be deleted. Run when helper thread is sleeping
-    std::queue<ChunkStackPos> chunk_stack_mesh_deletion_queue; // Chunk stack whose chunk meshes that need to be deleted. Ditto above.
+    std::queue<ColumnPos> column_deletion_queue; // Chunk stacks that need to be deleted. Run when helper thread is sleeping
+    std::queue<ColumnPos> column_mesh_deletion_queue; // Chunk stack whose chunk meshes that need to be deleted. Ditto above.
 
     std::future<void> helper_thread;
     std::future_status helper_thread_status;
@@ -81,20 +81,20 @@ private:
     // Updating functions
     void update();
     void checkCurrentChunk();
-    void updateChunkStackEdgeOccupancy(ChunkStack& chunk_stack);
+    void updateColumnEdgeOccupancy(Column& column);
 
     void updateChunkQueues();
-    void updateChunkStackCreationQueue();
-    void updateChunkStackMeshCreationQueues();
+    void updateColumnCreationQueue();
+    void updateColumnMeshCreationQueues();
 
     // Run through creation queues
     void swapCreationQueues();
     void processCreationQueues(); // Run by helper thread
-    void refreshStaleChunkStackVertices(); // Run by helper thread
-    void generateChunkStacks(); // Run by helper thread
-    void generateChunkStackVertices(); // Run by helper thread
+    void refreshStaleColumnVertices(); // Run by helper thread
+    void generateColumns(); // Run by helper thread
+    void generateColumnVertices(); // Run by helper thread
 
-    void integrateGeneratedChunkStacks(); // Run by main thread
+    void integrateGeneratedColumns(); // Run by main thread
     void swapBuffersAndGenerateMeshes(); // Run by main thread
 
     // Run through deletion queues

@@ -41,14 +41,14 @@ private:
     BlockType type;
 };
 
-struct ChunkStackPos {
+struct ColumnPos {
     int x;
     int z;
 
-    ChunkStackPos();
-    ChunkStackPos(int x, int z);
+    ColumnPos();
+    ColumnPos(int x, int z);
 
-    bool operator==(const ChunkStackPos& other) const {
+    bool operator==(const ColumnPos& other) const {
         return x == other.x && z == other.z;
     }
 };
@@ -65,8 +65,8 @@ struct ChunkPos {
         return x == other.x && y == other.y && z == other.z;
     }
 
-    ChunkStackPos getChunkStackPos() {
-        return ChunkStackPos(x, z);
+    ColumnPos getColumnPos() {
+        return ColumnPos(x, z);
     }
 };
 
@@ -80,11 +80,11 @@ public:
     }
 };
 
-class ChunkStackPosHashFunc {
+class ColumnPosHashFunc {
 public:
-    std::size_t operator()(const ChunkStackPos& chunk_stack_pos) const noexcept {
-        std::size_t h1 = std::hash<int>{}(chunk_stack_pos.x);
-        std::size_t h2 = std::hash<int>{}(chunk_stack_pos.z);
+    std::size_t operator()(const ColumnPos& column_pos) const noexcept {
+        std::size_t h1 = std::hash<int>{}(column_pos.x);
+        std::size_t h2 = std::hash<int>{}(column_pos.z);
         // boost-style combine
         return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
     }
@@ -173,17 +173,17 @@ private:
     void addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2);
 };
 
-struct ChunkStack {
-    ChunkStack(ChunkStackPos chunk_stack_pos);
+struct Column {
+    Column(ColumnPos column_pos);
 
     // Won't be using copy constructor or copy assignment (similar to mesh)
-    ChunkStack(const ChunkStack& chunk_stack) = delete;
-    ChunkStack& operator=(const ChunkStack& chunk_stack) = delete;
+    Column(const Column& column) = delete;
+    Column& operator=(const Column& column) = delete;
 
-    ChunkStack(ChunkStack&& chunk_stack) noexcept;
-    ChunkStack& operator=(ChunkStack&& chunk_stack) noexcept;
+    Column(Column&& column) noexcept;
+    Column& operator=(Column&& column) noexcept;
 
-    ~ChunkStack() = default;
+    ~Column() = default;
 
     Chunk& operator[](int index);
     const Chunk& operator[](int index) const;
@@ -196,8 +196,8 @@ struct ChunkStack {
     void refreshMeshes();
     void destroyMeshes();
 
-    static constexpr int CHUNK_STACK_HEIGHT = 16;
+    static constexpr int COLUMN_HEIGHT = 16;
 
-    ChunkStackPos chunk_stack_pos;
+    ColumnPos column_pos;
     std::vector<Chunk> chunks; // 0 will be the chunk at the bottom, 15 will be the chunk at the top
 };

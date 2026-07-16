@@ -4,11 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-07-15
+## [Released] - 2026-07-16
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
+
+### [0.2.3]
+
+Update 0.2.3
+
+Tall chunks! A world isn't very interested without terrain. This update adds COLUMNS, a.k.a stacks of chunks that will be used for terrain in a later update.
+- Add the column class. Effectively a container to hold chunks that are stacked vertically.
+- Changed much of the app to swap out chunks for columns
+- Note to self: If individual block modifications are ever added, will need to add functions that allow individual chunks to be modified
 
 ### [0.2.2]
 
@@ -22,6 +31,8 @@ The aim primary aim was to update the meshes of chunks when neighbours were crea
 - Tidy up code a little
 
 ### [0.2.0]
+
+Update 0.2.0
 
 This update was originally intended to be numbered as "0.1.5" to represent a small update focused on performance and little else. While the focus has stayed consistent, the time and effort changed from "small".
 
@@ -50,6 +61,8 @@ More detailed explanation of the above:
 
 ### [0.1.0]
 
+Update 0.1.0
+
 The first update/version of this project. Just a simple, solid coloured, flat voxel terrain.
 Think superflat in Minecraft but the grass is just one colour. This update will act as the
 foundation for the project.
@@ -77,23 +90,25 @@ from one chunk to another since it is checked when chunks are created
   - Neighbouring chunk is created (not yet implemented)
   - Neighbouring chunk is modified (not yet implemented)
 
-## [Unreleased] - 2026-04-28
+## [Unreleased] - 2026-07-16
 
 Here will write a vague roadmap of the upcoming updates and changes to the project.
 Not supposed to be very rigid and features will move from one planned update to the next.
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
 
+### [0.2.4]
+
+- Lighting and normals!
+
 ### [0.3.0]
 
-- Tall chunks (not just flat)
-- Will need to add ways to modify things for individual chunks and not just entire chunks stacks (if necessary)
-
-### [0.3.5]
-
 - Terrain generation
-- Lighting
 - Look into more efficient ways to construct the vertices of a chunk with colour data
+
+### [0.3.0+]
+
+- Will definitely need to add further optimisation techniques such as frustum culling.
 
 ### [Future]
 

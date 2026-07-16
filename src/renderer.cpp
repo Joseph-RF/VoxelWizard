@@ -172,9 +172,9 @@ void Renderer::renderScene(const RenderContext& render_context) {
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     // Call object draw functions
-    for (unsigned int i = 0; i < render_context.chunk_stacks_to_be_rendered.size(); ++i) {
-        if (render_context.chunks.count(render_context.chunk_stacks_to_be_rendered[i]) == 0) { continue; }
-        render_context.chunks.at(render_context.chunk_stacks_to_be_rendered[i]).draw(shader_lib.get("objects"));
+    for (unsigned int i = 0; i < render_context.columns_to_be_rendered.size(); ++i) {
+        if (render_context.chunks.count(render_context.columns_to_be_rendered[i]) == 0) { continue; }
+        render_context.chunks.at(render_context.columns_to_be_rendered[i]).draw(shader_lib.get("objects"));
     }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
