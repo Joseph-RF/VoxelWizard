@@ -41,6 +41,18 @@ private:
     BlockType type;
 };
 
+struct ChunkStackPos {
+    int x;
+    int z;
+
+    ChunkStackPos();
+    ChunkStackPos(int x, int z);
+
+    bool operator==(const ChunkStackPos& other) const {
+        return x == other.x && z == other.z;
+    }
+};
+
 struct ChunkPos {
     int x;
     int y;
@@ -49,17 +61,32 @@ struct ChunkPos {
     ChunkPos();
     ChunkPos(int x, int y, int z);
 
-    bool operator==(const ChunkPos &other) const {
+    bool operator==(const ChunkPos& other) const {
         return x == other.x && y == other.y && z == other.z;
+    }
+
+    ChunkStackPos getChunkStackPos() {
+        return ChunkStackPos(x, z);
     }
 };
 
-class HashFunction {
+class ChunkPosHashFunc {
 public:
-    size_t operator()(const ChunkPos &chunk_pos) const {
-        return ((std::hash<int>()(chunk_pos.x)
-                ^ (std::hash<int>()(chunk_pos.y) << 1)) >> 1)
-                ^ (std::hash<int>()(chunk_pos.z) << 1);
+    std::size_t operator()(const ChunkPos& chunk_pos) const noexcept {
+        std::size_t h = std::hash<int>{}(chunk_pos.x);
+        h ^= std::hash<int>{}(chunk_pos.y) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        h ^= std::hash<int>{}(chunk_pos.z) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+
+class ChunkStackPosHashFunc {
+public:
+    std::size_t operator()(const ChunkStackPos& chunk_stack_pos) const noexcept {
+        std::size_t h1 = std::hash<int>{}(chunk_stack_pos.x);
+        std::size_t h2 = std::hash<int>{}(chunk_stack_pos.z);
+        // boost-style combine
+        return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
     }
 };
 
@@ -104,7 +131,7 @@ public:
     ~Chunk() = default;
 
     void update(float dt);
-    void draw(Shader shader);
+    void draw(Shader& shader);
 
     void setDirty(bool dirty);
 
@@ -144,4 +171,33 @@ private:
 
     unsigned int addVertex(glm::i32vec3 position, glm::vec3 colour);
     void addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2);
+};
+
+struct ChunkStack {
+    ChunkStack(ChunkStackPos chunk_stack_pos);
+
+    // Won't be using copy constructor or copy assignment (similar to mesh)
+    ChunkStack(const ChunkStack& chunk_stack) = delete;
+    ChunkStack& operator=(const ChunkStack& chunk_stack) = delete;
+
+    ChunkStack(ChunkStack&& chunk_stack) noexcept;
+    ChunkStack& operator=(ChunkStack&& chunk_stack) noexcept;
+
+    ~ChunkStack() = default;
+
+    Chunk& operator[](int index);
+    const Chunk& operator[](int index) const;
+
+    void draw(Shader& shader);
+
+    void generateVertices();
+    void swapVertexBuffers();
+    void generateMeshes();
+    void refreshMeshes();
+    void destroyMeshes();
+
+    static constexpr int CHUNK_STACK_HEIGHT = 16;
+
+    ChunkStackPos chunk_stack_pos;
+    std::vector<Chunk> chunks; // 0 will be the chunk at the bottom, 15 will be the chunk at the top
 };

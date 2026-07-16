@@ -10,8 +10,8 @@
 struct RenderContext {
     // Throw objects to be rendered in here
     Camera& camera;
-    std::unordered_map<ChunkPos, Chunk, HashFunction>& chunks;
-    std::vector<ChunkPos>& chunks_to_be_rendered;
+    std::unordered_map<ChunkStackPos, ChunkStack, ChunkStackPosHashFunc>& chunks;
+    std::vector<ChunkStackPos>& chunk_stacks_to_be_rendered;
 };
 
 class Renderer {

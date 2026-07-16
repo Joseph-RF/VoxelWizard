@@ -68,7 +68,7 @@ void App::update() {
     // I.e. Add new chunks to the data, swap the vertex and index buffers, generate meshes
 
     if (isHelperThreadFinished()) {
-        integrateGeneratedChunks();
+        integrateGeneratedChunkStacks();
         swapBuffersAndGenerateMeshes();
         processDeletionQueues();
     }
@@ -89,226 +89,243 @@ void App::update() {
 
 void App::checkCurrentChunk() {
     ChunkPos chunk_pos = getChunkPos(camera.pos);
-    if (!(chunk_pos == this->current_chunk_pos)) {
-        this->current_chunk_pos = chunk_pos;
+    ChunkStackPos chunk_stack_pos = chunk_pos.getChunkStackPos();
+    if (!(chunk_stack_pos == this->current_chunk_stack_pos)) {
+        this->current_chunk_stack_pos = chunk_stack_pos;
         //this->current_chunk_pos = ChunkPos(0, 0, 0);
         updateChunkQueues();
         updateChunksToBeRendered();
     }
 }
 
-void App::updateChunkEdgeOccupancy(Chunk& chunk) {
+void App::updateChunkStackEdgeOccupancy(ChunkStack& chunk_stack) {
 
-    static const std::array<std::pair<ChunkNeighbour, ChunkPos>, 6> chunk_neighbour_positions{ {
+    static const std::array<std::pair<ChunkNeighbour, ChunkPos>, 6> chunk_stack_neighbour_positions{ {
         {ChunkNeighbour::LEFT, ChunkPos{-1, 0, 0}},
         {ChunkNeighbour::RIGHT, ChunkPos{1, 0, 0}},
-        {ChunkNeighbour::BELOW, ChunkPos{0, -1, 0}},
-        {ChunkNeighbour::ABOVE, ChunkPos{0, 1, 0}},
         {ChunkNeighbour::BEHIND, ChunkPos{0, 0, -1}},
         {ChunkNeighbour::IN_FRONT, ChunkPos{0, 0, 1}},
     } };
 
-    // Go through the chunk_neighbour positions to pad the occupancy data of chunk
-    for (const auto& pair : chunk_neighbour_positions) {
-        ChunkPos chunk_pos{ 
-            chunk.chunk_pos.x + pair.second.x, 
-            chunk.chunk_pos.y + pair.second.y, 
-            chunk.chunk_pos.z + pair.second.z 
+    // Iterate through each individual chunk in a chunk stack for every neighbour direction
+    for (const auto& pair : chunk_stack_neighbour_positions) {
+        ChunkStackPos neighbour_chunk_stack_pos{
+                chunk_stack.chunk_stack_pos.x + pair.second.x,
+                chunk_stack.chunk_stack_pos.z + pair.second.z
         };
 
-        // Search in the chunks hash map
-        if (chunks.count(chunk_pos) > 0) {
-            chunk.padOccupancy(chunks.at(chunk_pos), pair.first);
-            // If the neighbour already existed in data, update its occupancy as well
-            chunks.at(chunk_pos).padOccupancy(chunk, reverseChunkNeighbour(pair.first));
-            
-            // Need to update the neighbouring chunk's mesh now
-            chunks.at(chunk_pos).setDirty(true);
-            stale_chunk_vertices_helper.push(chunk_pos);
+        // Search in the chunk stack hash map
+        if (chunks.count(neighbour_chunk_stack_pos) > 0) {
+            for (Chunk& chunk : chunk_stack.chunks) {
+
+                chunk.padOccupancy(chunks.at(neighbour_chunk_stack_pos)[chunk.chunk_pos.y], pair.first);
+                // If the neighbour already existed in data, update its occupancy as well
+                chunks.at(neighbour_chunk_stack_pos)[chunk.chunk_pos.y].padOccupancy(chunk, reverseChunkNeighbour(pair.first));
+
+                // Need to update the neighbouring chunk's mesh now
+                chunks.at(neighbour_chunk_stack_pos)[chunk.chunk_pos.y].setDirty(true);
+            }
+            // Neighbouring chunk stack needs to have its mesh refreshed
+            stale_chunk_stacks_vertices_helper.push(neighbour_chunk_stack_pos);
         }
-        // Search in the chunks that are waiting to be moved to the hash map
-        else if (chunks_on_helper_thread.find(chunk_pos) != chunks_on_helper_thread.end()) {
-            chunk.padOccupancy(helper_created_chunks[chunks_on_helper_thread.at(chunk_pos)], pair.first);
+        else if (chunk_stacks_on_helper_thread.count(neighbour_chunk_stack_pos) > 0) {
+            for (Chunk& chunk : chunk_stack.chunks) {
+                chunk.padOccupancy(helper_created_chunk_stacks[chunk_stacks_on_helper_thread.at(neighbour_chunk_stack_pos)][chunk.chunk_pos.y], pair.first);
+            }
         }
+    }
+
+    // Go through the chunks in the chunk stack from the bottom up except for last chunk (nothing above it)
+    for (int i = 0; i < ChunkStack::CHUNK_STACK_HEIGHT - 1; ++i) {
+        chunk_stack.chunks[i].padOccupancy(chunk_stack.chunks[i + 1], ChunkNeighbour::ABOVE);
+    }
+    // Go through the chunks in the chunk stack from the top down except for the last chunk (nothing below it)
+    for (int i = ChunkStack::CHUNK_STACK_HEIGHT - 1; i > 0; --i) {
+        chunk_stack.chunks[i].padOccupancy(chunk_stack.chunks[i - 1], ChunkNeighbour::BELOW);
     }
 }
 
 void App::updateChunkQueues() {
-    updateChunkCreationQueue();
-    updateChunkMeshCreationQueues();
+    updateChunkStackCreationQueue();
+    updateChunkStackMeshCreationQueues();
 }
 
-void App::updateChunkCreationQueue() {
-    std::unordered_set<ChunkPos, HashFunction> chunk_list; // Chunks that SHOULD exist
+void App::updateChunkStackCreationQueue() {
+    std::unordered_set<ChunkStackPos, ChunkStackPosHashFunc> chunk_stack_list; // Chunk stacks that SHOULD exist
 
     // Refresh the current creation queue
-    chunk_creation_queue_main = std::queue<ChunkPos>();
+    chunk_stack_creation_queue_main = std::queue<ChunkStackPos>();
 
     for (int i = -chunk_distance; i <= chunk_distance; ++i) {
         for (int k = -chunk_distance; k <= chunk_distance; ++k) {
-            ChunkPos chunk_pos = ChunkPos(current_chunk_pos.x + i, 0, current_chunk_pos.z + k);
-            if (chunks.count(chunk_pos) == 0) {
-                // If a chunk at chunk_pos doesn't exist in memory, add to the creation queue
-                chunk_creation_queue_main.push(chunk_pos);
+            ChunkStackPos chunk_stack_pos = ChunkStackPos{ current_chunk_stack_pos.x + i, current_chunk_stack_pos.z + k };
+            if (chunks.count(chunk_stack_pos) == 0) {
+                // If a chunk stack at chunk_stack_pos doesn't exist, add it to the queue
+                // to be created
+                chunk_stack_creation_queue_main.push(chunk_stack_pos);
             }
-            chunk_list.insert(chunk_pos);
+            chunk_stack_list.insert(chunk_stack_pos);
         }
     }
 
     // Create deletion queue
     for (auto& element : chunks) {
-        if (chunk_list.count(element.first) == 0) {
-            // If cannot find chunk_pos of current chunk in chunk_list, delete it
-            chunk_deletion_queue.push(element.first);
+        if (chunk_stack_list.count(element.first) == 0) {
+            // If cannot find chunk_stack_pos of current chunk stack in chunk_stack_list,
+            // queue for deletion
+            chunk_stack_deletion_queue.push(element.first);
         }
     }
 }
 
-void App::updateChunkMeshCreationQueues() {
+void App::updateChunkStackMeshCreationQueues() {
     // TODO: Will need to modify this when block edition is added.
 
-    // Create list of chunks whose meshes need to be created
-    std::unordered_set<ChunkPos, HashFunction> mesh_list;
+    // Create list of chunk stacks whose chunk meshes need to be created
+    std::unordered_set<ChunkStackPos, ChunkStackPosHashFunc> stack_mesh_list;
 
     // Refresh the current chunk vertex and mesh creation queues
-    chunk_vertex_creation_queue_main = std::queue<ChunkPos>();
-    chunk_mesh_creation_queue = std::queue<ChunkPos>();
+    chunk_stacks_vertex_creation_queue_main = std::queue<ChunkStackPos>();
+    chunk_stack_mesh_creation_queue = std::queue<ChunkStackPos>();
 
     for (int i = -mesh_distance; i <= mesh_distance; ++i) {
         for (int k = -mesh_distance; k <= mesh_distance; ++k) {
-            ChunkPos chunk_pos = ChunkPos(current_chunk_pos.x + i, 0, current_chunk_pos.z + k);
+            ChunkStackPos chunk_stack_pos = ChunkStackPos{ current_chunk_stack_pos.x + i, current_chunk_stack_pos.z + k };
 
-            mesh_list.insert(chunk_pos);
+            stack_mesh_list.insert(chunk_stack_pos);
 
-            if (chunks.count(chunk_pos) == 0) {
-                std::cout << "Chunk missing when vertex creation queue was being updated" << std::endl;
-                chunk_creation_queue_main.push(chunk_pos);
-                chunk_vertex_creation_queue_main.push(chunk_pos);
-                chunk_mesh_creation_queue.push(chunk_pos);
+            if (chunks.count(chunk_stack_pos) == 0) {
+                std::cout << "Chunk stack missing when vertex creation queue was being updated" << std::endl;
+                chunk_stack_creation_queue_main.push(chunk_stack_pos);
+                chunk_stacks_vertex_creation_queue_main.push(chunk_stack_pos);
+                chunk_stack_mesh_creation_queue.push(chunk_stack_pos);
                 continue;
             }
+            /*
+            * NOTE NOTE: REMOVING THIS FOR NOW
+            * 
             // If a chunk at chunk_pos doesn't have a generated mesh, add to the appropriate creation queues
             if (!chunks.at(chunk_pos).mesh_generated) {
                 chunk_vertex_creation_queue_main.push(chunk_pos);
                 chunk_mesh_creation_queue.push(chunk_pos);
             }
+            */
         }
     }
 
     // Remove meshes from GPU memory that aren't in the new list of meshes
     for (auto& chunk : chunks) {
-        if (mesh_list.count(chunk.first) == 0) {
-            chunk_mesh_deletion_queue.push(chunk.first);
+        if (stack_mesh_list.count(chunk.first) == 0) {
+            chunk_stack_mesh_deletion_queue.push(chunk.first);
         }
     }
 }
 
 void App::swapCreationQueues() {
     // Pass queue data from main thread queues to helper thread queues
-    chunk_creation_queue_main.swap(chunk_creation_queue_helper);
-    std::queue<ChunkPos>().swap(chunk_creation_queue_main); // Empty queue on main
+    chunk_stack_creation_queue_main.swap(chunk_stack_creation_queue_helper);
+    std::queue<ChunkStackPos>().swap(chunk_stack_creation_queue_main); // Empty queue on main
 
-    chunk_vertex_creation_queue_main.swap(chunk_vertex_creation_queue_helper);
-    std::queue<ChunkPos>().swap(chunk_vertex_creation_queue_main); // Empty queue on main
+    chunk_stacks_vertex_creation_queue_main.swap(chunk_stacks_vertex_creation_queue_helper);
+    std::queue<ChunkStackPos>().swap(chunk_stacks_vertex_creation_queue_main); // Empty queue on main
 }
 
 void App::processCreationQueues() {
     // Create chunks that were in the creation queue as well as the vertices and indices of 
     // chunks that are in the mesh creation queue
 
-    refreshStaleChunkVertices();
+    refreshStaleChunkStackVertices();
 
-    generateChunks();
+    generateChunkStacks();
 
-    generateChunkVertices();
+    generateChunkStackVertices();
 }
 
-void App::refreshStaleChunkVertices() {
-    // Update the stale meshes
-    while (!stale_chunk_vertices_helper.empty()) {
-        ChunkPos chunk_pos = stale_chunk_vertices_helper.front();
+void App::refreshStaleChunkStackVertices() {
+    // Update the stale meshes for chunk stacks
+    while (!stale_chunk_stacks_vertices_helper.empty()) {
+        ChunkStackPos chunk_stack_pos = stale_chunk_stacks_vertices_helper.front();
 
         // Don't need to do a dirtied check since it is done in generateVertices()
 
         // Search in chunks hash map
-        if (chunks.count(chunk_pos) > 0) {
-            chunks.at(chunk_pos).generateVertices();
-            stale_mesh_creation_queue.push(chunk_pos);
+        if (chunks.count(chunk_stack_pos) > 0) {
+            chunks.at(chunk_stack_pos).generateVertices();
+            stale_mesh_creation_queue.push(chunk_stack_pos);
         }
-
-        stale_chunk_vertices_helper.pop();
+        stale_chunk_stacks_vertices_helper.pop();
     }
 }
 
-void App::generateChunks() {
-    while (!chunk_creation_queue_helper.empty()) {
-        // Check that the chunk does not already exist anywhere
-        ChunkPos chunk_pos = chunk_creation_queue_helper.front();
-        if (chunks.count(chunk_pos) == 0 && chunks_on_helper_thread.count(chunk_pos) == 0) {
-            helper_created_chunks.emplace_back(chunk_creation_queue_helper.front());
-            chunks_on_helper_thread.emplace(chunk_creation_queue_helper.front(), helper_created_chunks.size() - 1);
+void App::generateChunkStacks() {
+    while (!chunk_stack_creation_queue_helper.empty()) {
+        // Check that the chunk stack does not already exist anywhere
+        ChunkStackPos chunk_stack_pos = chunk_stack_creation_queue_helper.front();
+        if (chunks.count(chunk_stack_pos) == 0 && chunk_stacks_on_helper_thread.count(chunk_stack_pos) == 0) {
+            helper_created_chunk_stacks.emplace_back(chunk_stack_creation_queue_helper.front());
+            chunk_stacks_on_helper_thread.emplace(chunk_stack_creation_queue_helper.front(), helper_created_chunk_stacks.size() - 1);
         }
-        chunk_creation_queue_helper.pop();
+        chunk_stack_creation_queue_helper.pop();
     }
     // Update the occupancy arrays to reflect occupancy data of neighbouring chunks
-    for (Chunk& chunk : helper_created_chunks) {
-        updateChunkEdgeOccupancy(chunk);
+    for (ChunkStack& chunk_stack : helper_created_chunk_stacks) {
+        updateChunkStackEdgeOccupancy(chunk_stack);
     }
 }
 
-void App::generateChunkVertices() {
-    while (!chunk_vertex_creation_queue_helper.empty()) {
+void App::generateChunkStackVertices() {
+    while (!chunk_stacks_vertex_creation_queue_helper.empty()) {
 
-        ChunkPos chunk_pos = chunk_vertex_creation_queue_helper.front();
+        ChunkStackPos chunk_stack_pos = chunk_stacks_vertex_creation_queue_helper.front();
 
         // Don't need to do a dirtied check since it is done in generateVertices()
 
-        // Search in chunks hash map
-        if (chunks.count(chunk_pos) > 0) {
-            if (!chunks.at(chunk_pos).mesh_generated && !chunks.at(chunk_pos).vertices_generated) {
-                chunks.at(chunk_pos).generateVertices();
-            }
+        // Search in chunk stack hash map
+        if (chunks.count(chunk_stack_pos) > 0) {
+            // TODO NOTE: REMOVED THE MESH GENERATED CHECK FOR GENERATING VERTICES
+            chunks.at(chunk_stack_pos).generateVertices();
         }
         // Search in chunks still sitting in the helper thread array
-        else if (chunks_on_helper_thread.count(chunk_pos) > 0) {
-            Chunk& chunk = helper_created_chunks[chunks_on_helper_thread.at(chunk_pos)];
-            if (!chunk.mesh_generated && !chunk.vertices_generated) {
-                chunk.generateVertices();
-            }
+        else if (chunk_stacks_on_helper_thread.count(chunk_stack_pos) > 0) {
+            // TODO NOTE: REMOVED THE MESH GENERATED CHECK FOR GENERATING VERTICES
+            helper_created_chunk_stacks[chunk_stacks_on_helper_thread.at(chunk_stack_pos)].generateVertices();
         }
-        chunk_vertex_creation_queue_helper.pop();
+        chunk_stacks_vertex_creation_queue_helper.pop();
     }
 }
 
-void App::integrateGeneratedChunks() {
+void App::integrateGeneratedChunkStacks() {
     // Pass chunks constructed by the helper thread to the main chunk hash map
     // Reset the structures used by helper thread to hold generated chunks
     
-    for (Chunk& chunk : helper_created_chunks) {
-        ChunkPos key = chunk.chunk_pos;
-        chunks.try_emplace(key, std::move(chunk));
+    for (ChunkStack& chunk_stack : helper_created_chunk_stacks) {
+        ChunkStackPos key = chunk_stack.chunk_stack_pos;
+        chunks.try_emplace(key, std::move(chunk_stack));
     }
-    std::vector<Chunk>().swap(helper_created_chunks);
-    std::unordered_map<ChunkPos, int, HashFunction>().swap(chunks_on_helper_thread);
+    std::vector<ChunkStack>().swap(helper_created_chunk_stacks);
+    std::unordered_map<ChunkStackPos, int, ChunkStackPosHashFunc>().swap(chunk_stacks_on_helper_thread);
 }
 
 void App::swapBuffersAndGenerateMeshes() {
     // Swap the back and front buffers containing newly made vertex and index data
     // Construct the chunk meshes using the new vertex and index data
 
-    while (!chunk_mesh_creation_queue.empty()) {
-        if (!chunks.at(chunk_mesh_creation_queue.front()).mesh_generated) {
-            chunks.at(chunk_mesh_creation_queue.front()).swapVertexBuffers();
-            chunks.at(chunk_mesh_creation_queue.front()).generateMesh();
+    ChunkStackPos chunk_stack_pos;
+
+    while (!chunk_stack_mesh_creation_queue.empty()) {
+        chunk_stack_pos = chunk_stack_mesh_creation_queue.front();
+        if (chunks.count(chunk_stack_pos)) {
+            chunks.at(chunk_stack_pos).swapVertexBuffers();
+            chunks.at(chunk_stack_pos).generateMeshes();
         }
-        chunk_mesh_creation_queue.pop();
+        chunk_stack_mesh_creation_queue.pop();
     }
 
     // Now swap buffers and generate meshes for chunks that had stale vertices and meshes
     while (!stale_mesh_creation_queue.empty()) {
         if (chunks.count(stale_mesh_creation_queue.front()) > 0) {
             chunks.at(stale_mesh_creation_queue.front()).swapVertexBuffers();
-            chunks.at(stale_mesh_creation_queue.front()).refreshMesh();
+            chunks.at(stale_mesh_creation_queue.front()).refreshMeshes();
         }
         stale_mesh_creation_queue.pop();
     }
@@ -318,18 +335,21 @@ void App::swapBuffersAndGenerateMeshes() {
 void App::processDeletionQueues() {
     // Delete chunks and chunk meshes sent to the deletion queue
     // Check that the chunks exist before deleting them
-    while (!chunk_mesh_deletion_queue.empty()) {
-        if (chunks.count(chunk_mesh_deletion_queue.front()) > 0) {
-            chunks.at(chunk_mesh_deletion_queue.front()).destroyMesh();
+    ChunkStackPos chunk_stack_pos;
+
+    while (!chunk_stack_mesh_deletion_queue.empty()) {
+        chunk_stack_pos = chunk_stack_mesh_deletion_queue.front();
+        if (chunks.count(chunk_stack_pos) > 0) {
+            chunks.at(chunk_stack_pos).destroyMeshes();
         }
-        chunk_mesh_deletion_queue.pop();
+        chunk_stack_mesh_deletion_queue.pop();
     }
 
-    while (!chunk_deletion_queue.empty()) {
-        if (chunks.count(chunk_deletion_queue.front()) > 0) {
-            chunks.erase(chunk_deletion_queue.front());
+    while (!chunk_stack_deletion_queue.empty()) {
+        if (chunks.count(chunk_stack_deletion_queue.front()) > 0) {
+            chunks.erase(chunk_stack_deletion_queue.front());
         }
-        chunk_deletion_queue.pop();
+        chunk_stack_deletion_queue.pop();
     }
 }
 
@@ -354,11 +374,11 @@ void App::tryHelperThreadLaunch() {
 
 void App::updateChunksToBeRendered() {
     // TODO: Potentially move the check in renderScene of existing chunks to here instead
-    chunks_to_be_rendered = std::vector<ChunkPos>(std::pow(2 * render_distance + 1, 2));
+    chunk_stacks_to_be_rendered = std::vector<ChunkStackPos>(std::pow(2 * render_distance + 1, 2));
     int counter = 0;
     for (int i = -render_distance; i <= render_distance; i++) {
         for (int k = -render_distance; k <= render_distance; k++) {
-            chunks_to_be_rendered[counter] = ChunkPos(current_chunk_pos.x + i, 0, current_chunk_pos.z + k);
+            chunk_stacks_to_be_rendered[counter] = ChunkStackPos(current_chunk_stack_pos.x + i, current_chunk_stack_pos.z + k);
             counter++;
         }
     }
@@ -443,7 +463,7 @@ void App::render() {
     window_manager->newImGuiFrame();
 
     // Render scene
-    renderer.render(RenderContext{camera, chunks, chunks_to_be_rendered});
+    renderer.render(RenderContext{camera, chunks, chunk_stacks_to_be_rendered});
 
     // After drawing OpenGL objects, draw ImGUI
     renderImGUI();

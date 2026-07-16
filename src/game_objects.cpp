@@ -61,11 +61,11 @@ ChunkPos::ChunkPos() {
     this->z = 0;
 }
 
-ChunkPos::ChunkPos(int x, int y, int z) {
-    this->x = x;
-    this->y = y;
-    this->z = z;
-}
+ChunkPos::ChunkPos(int x, int y, int z) : x(x), y(y), z(z) {}
+
+ChunkStackPos::ChunkStackPos() : x(0), z(0) {}
+
+ChunkStackPos::ChunkStackPos(int x, int z) : x(x), z(z) {}
 
 Mesh::Mesh(const std::vector<VertexData>& vertices, const std::vector<unsigned int>& indices) {
     glGenVertexArrays(1, &vao);
@@ -245,7 +245,7 @@ Chunk& Chunk::operator=(Chunk &&chunk) noexcept {
     return *this;
 }
 
-void Chunk::draw(Shader shader) {
+void Chunk::draw(Shader& shader) {
 
     if (mesh == nullptr) {
         std::cout << "Chunk at chunk position: " << chunk_pos.x << " " << chunk_pos.y << " " << chunk_pos.z <<
@@ -542,4 +542,82 @@ void Chunk::addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2
     indices_back_buffer.push_back(v0);
     indices_back_buffer.push_back(v1);
     indices_back_buffer.push_back(v2);
+}
+
+ChunkStack::ChunkStack(ChunkStackPos chunk_stack_pos) : chunk_stack_pos(chunk_stack_pos) {
+    //TODO: Fill out the array containing the 16 chunks
+    for (int i = 0; i < ChunkStack::CHUNK_STACK_HEIGHT; ++i) {
+        chunks.emplace_back(ChunkPos{ chunk_stack_pos.x, i, chunk_stack_pos.z });
+    }
+
+    std::cout << "Size of each chunk stack: " << sizeof(ChunkStack) << " and each chunk: " << sizeof(Chunk) << std::endl;
+    std::cout << "Size of each block: " << sizeof(Block) << std::endl;
+}
+
+ChunkStack::ChunkStack(ChunkStack&& chunk_stack) noexcept {
+    this->chunk_stack_pos = chunk_stack.chunk_stack_pos;
+    this->chunks = std::move(chunk_stack.chunks);
+}
+
+ChunkStack& ChunkStack::operator=(ChunkStack&& chunk_stack) noexcept {
+    if (this == &chunk_stack) {
+        return *this;
+    }
+
+    this->chunk_stack_pos = chunk_stack.chunk_stack_pos;
+    this->chunks = std::move(chunk_stack.chunks);
+
+    return *this;
+}
+
+Chunk& ChunkStack::operator[](int index) {
+    if (index >= ChunkStack::CHUNK_STACK_HEIGHT || index < 0) {
+        std::cout << "Array index out of bound, returning 0th chunk";
+        return chunks[0];
+    }
+    return chunks[index];
+}
+
+const Chunk& ChunkStack::operator[](int index) const {
+    if (index >= ChunkStack::CHUNK_STACK_HEIGHT || index < 0) {
+        std::cout << "Array index out of bound, returning 0th chunk";
+        return chunks[0];
+    }
+    return chunks[index];
+}
+
+void ChunkStack::draw(Shader& shader) {
+    for (Chunk& chunk : chunks) {
+        chunk.draw(shader);
+    }
+}
+
+void ChunkStack::generateVertices() {
+    for (Chunk& chunk : chunks) {
+        chunk.generateVertices();
+    }
+}
+
+void ChunkStack::swapVertexBuffers() {
+    for (Chunk& chunk : chunks) {
+        chunk.swapVertexBuffers();
+    }
+}
+
+void ChunkStack::generateMeshes() {
+    for (Chunk& chunk : chunks) {
+        chunk.generateMesh();
+    }
+}
+
+void ChunkStack::refreshMeshes() {
+    for (Chunk& chunk : chunks) {
+        chunk.refreshMesh();
+    }
+}
+
+void ChunkStack::destroyMeshes() {
+    for (Chunk& chunk : chunks) {
+        chunk.destroyMesh();
+    }
 }

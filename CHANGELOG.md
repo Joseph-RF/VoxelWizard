@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-06-23
+## [Released] - 2026-07-15
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
@@ -87,11 +87,12 @@ I suspect many changes won't be planned for entirely.
 ### [0.3.0]
 
 - Tall chunks (not just flat)
-- Terrain generation
-- Lighting
+- Will need to add ways to modify things for individual chunks and not just entire chunks stacks (if necessary)
 
 ### [0.3.5]
 
+- Terrain generation
+- Lighting
 - Look into more efficient ways to construct the vertices of a chunk with colour data
 
 ### [Future]
