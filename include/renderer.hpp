@@ -7,11 +7,22 @@
 
 #include <vector>
 
+struct DirLight {
+    glm::vec3 direction;
+
+    glm::vec3 colour;
+
+    float ambient;
+    float diffuse;
+    float specular;
+};
+
 struct RenderContext {
     // Throw objects to be rendered in here
     Camera& camera;
     std::unordered_map<ColumnPos, Column, ColumnPosHashFunc>& chunks;
     std::vector<ColumnPos>& columns_to_be_rendered;
+
 };
 
 class Renderer {
@@ -25,12 +36,19 @@ public:
 
     void processScreenResize(int new_window_width, int new_window_height);
 
+    // Rendering parameters
+    float shininess;
+    bool show_normals;
+    bool fill_polygons;
+    DirLight dir_light;
+
 private:
     void initShaders();
     void initFramebuffers();
     void initScreenQuad();
 
     void renderPrep(Camera& camera);
+    void setUniforms(const RenderContext& render_context);
     void renderScene(const RenderContext& render_context);
     void renderScreen();
 
@@ -59,7 +77,4 @@ private:
     // Textures
     unsigned int multisample_texture;
     unsigned int screen_texture;
-
-    // Mesh
-    std::unordered_map<unsigned int, std::vector<float>> meshes;
 };

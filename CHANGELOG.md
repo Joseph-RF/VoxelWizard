@@ -4,11 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-07-16
+## [Released] - 2026-07-20
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
+
+### [0.2.4]
+
+Update 0.2.4
+
+Up until this update, blocks were coloured the same solid green colour which was pretty boring and would not be
+helpful in the upcoming terrain generation update. This version introduces normals as an additional portion of data
+each vertex carries as well as a simple blinn-phong fragment shader to add nice lighting.
+
+- Normals added into vertex data as 6 different values represented by three bits which are then converted to 3D
+vector values in the vertex shader since in a voxel engine, only six possible normal values exists for blocks.
+- Blinn-phong lighting in the fragment shader that will help visualise terrain in the next update.
+- Putting the ImGUI UI to proper use by adding the ability to tweak rendering parameters such as the direction
+light comes from.
+- Fixed a small bug in the checking of neighbour occupancy data.
 
 ### [0.2.3]
 
@@ -90,28 +105,25 @@ from one chunk to another since it is checked when chunks are created
   - Neighbouring chunk is created (not yet implemented)
   - Neighbouring chunk is modified (not yet implemented)
 
-## [Unreleased] - 2026-07-16
+## [Unreleased] - 2026-07-20
 
 Here will write a vague roadmap of the upcoming updates and changes to the project.
 Not supposed to be very rigid and features will move from one planned update to the next.
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
 
-### [0.2.4]
-
-- Lighting and normals!
-
 ### [0.3.0]
 
 - Terrain generation
-- Look into more efficient ways to construct the vertices of a chunk with colour data
 
 ### [0.3.0+]
 
 - Will definitely need to add further optimisation techniques such as frustum culling.
+- Look into more efficient ways to construct the vertices of a chunk with colour data
 
 ### [Future]
 
+Is the model matrix necessary in the vertex shader? The world is a grid
+
 Better debugging UI e.g. FPS counter, button to change polygon mode, better lighting, walking and jumping, construct arena / terrain, other physics, enemies,
-simple gameplay mechanics (shooting and damaging enemies + losing health). Changing occupancy data if chunks are
-modified. Changing occupancy data for neighbours of modified chunks.
+simple gameplay mechanics (shooting and damaging enemies + losing health).

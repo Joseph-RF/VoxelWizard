@@ -81,7 +81,7 @@ Mesh::Mesh(const std::vector<VertexData>& vertices, const std::vector<unsigned i
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), indices.data(), GL_STATIC_DRAW);
 
     // Will use AttribIPointer to keep the data in GLSL as an int and not cast to float
-    glVertexAttribIPointer(0, 1, GL_SHORT, sizeof(VertexData), (void*)(offsetof(VertexData, packed_position)));
+    glVertexAttribIPointer(0, 1, GL_INT, sizeof(VertexData), (void*)(offsetof(VertexData, packed_position)));
     glEnableVertexAttribArray(0);
 
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(offsetof(VertexData, colour_x)));
@@ -303,10 +303,10 @@ void Chunk::generateVertices() {
 
                     colour = Block::block_type_colours[blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType()];
 
-                    v0 = addVertex(p0, colour);
-                    v1 = addVertex(p1, colour);
-                    v2 = addVertex(p2, colour);
-                    v3 = addVertex(p3, colour);
+                    v0 = addVertex(p0, colour, Block::RIGHT_FACE);
+                    v1 = addVertex(p1, colour, Block::RIGHT_FACE);
+                    v2 = addVertex(p2, colour, Block::RIGHT_FACE);
+                    v3 = addVertex(p3, colour, Block::RIGHT_FACE);
 
                     addTriangleIndices(v0, v1, v2);
                     addTriangleIndices(v1, v3, v2);
@@ -319,10 +319,10 @@ void Chunk::generateVertices() {
 
                     colour = Block::block_type_colours[blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType()];
 
-                    v0 = addVertex(p0, colour);
-                    v1 = addVertex(p1, colour);
-                    v2 = addVertex(p2, colour);
-                    v3 = addVertex(p3, colour);
+                    v0 = addVertex(p0, colour, Block::LEFT_FACE);
+                    v1 = addVertex(p1, colour, Block::LEFT_FACE);
+                    v2 = addVertex(p2, colour, Block::LEFT_FACE);
+                    v3 = addVertex(p3, colour, Block::LEFT_FACE);
 
                     addTriangleIndices(v0, v1, v2);
                     addTriangleIndices(v1, v3, v2);
@@ -356,10 +356,10 @@ void Chunk::generateVertices() {
 
                     colour = Block::block_type_colours[blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType()];
 
-                    v0 = addVertex(p0, colour);
-                    v1 = addVertex(p1, colour);
-                    v2 = addVertex(p2, colour);
-                    v3 = addVertex(p3, colour);
+                    v0 = addVertex(p0, colour, Block::UP_FACE);
+                    v1 = addVertex(p1, colour, Block::UP_FACE);
+                    v2 = addVertex(p2, colour, Block::UP_FACE);
+                    v3 = addVertex(p3, colour, Block::UP_FACE);
 
                     addTriangleIndices(v0, v1, v2);
                     addTriangleIndices(v1, v3, v2);
@@ -372,10 +372,10 @@ void Chunk::generateVertices() {
 
                     colour = Block::block_type_colours[blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType()];
 
-                    v0 = addVertex(p0, colour);
-                    v1 = addVertex(p1, colour);
-                    v2 = addVertex(p2, colour);
-                    v3 = addVertex(p3, colour);
+                    v0 = addVertex(p0, colour, Block::DOWN_FACE);
+                    v1 = addVertex(p1, colour, Block::DOWN_FACE);
+                    v2 = addVertex(p2, colour, Block::DOWN_FACE);
+                    v3 = addVertex(p3, colour, Block::DOWN_FACE);
 
                     addTriangleIndices(v0, v1, v2);
                     addTriangleIndices(v1, v3, v2);
@@ -409,10 +409,10 @@ void Chunk::generateVertices() {
 
                     colour = Block::block_type_colours[blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType()];
 
-                    v0 = addVertex(p0, colour);
-                    v1 = addVertex(p1, colour);
-                    v2 = addVertex(p2, colour);
-                    v3 = addVertex(p3, colour);
+                    v0 = addVertex(p0, colour, Block::BEHIND_FACE);
+                    v1 = addVertex(p1, colour, Block::BEHIND_FACE);
+                    v2 = addVertex(p2, colour, Block::BEHIND_FACE);
+                    v3 = addVertex(p3, colour, Block::BEHIND_FACE);
 
                     addTriangleIndices(v0, v1, v2);
                     addTriangleIndices(v1, v3, v2);
@@ -425,10 +425,10 @@ void Chunk::generateVertices() {
 
                     colour = Block::block_type_colours[blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType()];
 
-                    v0 = addVertex(p0, colour);
-                    v1 = addVertex(p1, colour);
-                    v2 = addVertex(p2, colour);
-                    v3 = addVertex(p3, colour);
+                    v0 = addVertex(p0, colour, Block::IN_FRONT_FACE);
+                    v1 = addVertex(p1, colour, Block::IN_FRONT_FACE);
+                    v2 = addVertex(p2, colour, Block::IN_FRONT_FACE);
+                    v3 = addVertex(p3, colour, Block::IN_FRONT_FACE);
 
                     addTriangleIndices(v0, v1, v2);
                     addTriangleIndices(v1, v3, v2);
@@ -518,16 +518,19 @@ void Chunk::destroyMesh() {
     dirtied = true;
 }
 
-unsigned int Chunk::addVertex(glm::i32vec3 vertex, glm::vec3 colour) {
+unsigned int Chunk::addVertex(glm::i32vec3 vertex, glm::vec3 colour, int32_t face) {
     // TODO: NOTE, must change this if chunks change from 16x16x16
     // Packing positional information for three axes into a single 16 bit int
     // x axis will be five right most bits (5 needed for 17 different positions)
-    short int vertex_3D = 0;
+    // 3 extra bits needed for the six different face values (18 total)
+    int32_t vertex_3D = 0;
     vertex_3D |= vertex.x;
 
     vertex_3D |= (vertex.y << 5);
 
     vertex_3D |= (vertex.z << 10);
+
+    vertex_3D |= (face << 15);
 
     // NOTE: Wasteful. Only need one colour per cube. 7 unnecessary duplicates.
 

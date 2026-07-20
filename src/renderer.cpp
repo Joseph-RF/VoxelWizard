@@ -17,6 +17,17 @@ Renderer::Renderer(int window_width, int window_height)
 
     multisample_texture = 0;
     screen_texture      = 0;
+
+    // Rendering parameters
+    shininess = 32.0f;
+    show_normals = false;
+    fill_polygons = true;
+
+    dir_light.direction = glm::vec3(0.0, 1.0, 0.4);
+    dir_light.colour = glm::vec3(1.0, 1.0, 1.0);
+    dir_light.ambient = 0.1f;
+    dir_light.diffuse = 0.8f;
+    dir_light.specular = 1.0f;
 }
 
 Renderer::~Renderer() {
@@ -38,6 +49,9 @@ void Renderer::init() {
 
 void Renderer::render(const RenderContext& render_context) {
     renderPrep(render_context.camera);
+
+    // Set uniforms
+    setUniforms(render_context);
 
     // Render scene
     renderScene(render_context);
@@ -155,26 +169,43 @@ void Renderer::renderPrep(Camera& camera) {
     glEnable(GL_DEPTH_TEST);
 }
 
-void Renderer::renderScene(const RenderContext& render_context) {
+void Renderer::setUniforms(const RenderContext& render_context) {
+    // Set uniforms that are consistent between vertices
+    Shader& object_shader = shader_lib.get("objects");
     // View and projection matrices won't change between objects
-    glm::mat4 view       = render_context.camera.lookAt();
+    glm::mat4 view = render_context.camera.lookAt();
     glm::mat4 projection = glm::perspective(
         glm::radians(render_context.camera.fov),
         (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, far_plane);
 
-    // Set shader variables here
-    shader_lib.get("objects").use();
-    shader_lib.get("objects").setFloat("side_length", Block::side_length);
-    shader_lib.get("objects").setMat("view", view);
-    shader_lib.get("objects").setMat("projection", projection);
+    // Vertex shader uniforms
+    object_shader.use();
+    object_shader.setFloat("side_length", Block::side_length);
+    object_shader.setMat("view", view);
+    object_shader.setMat("projection", projection);
+
+    // Fragment shader uniforms
+    object_shader.setVec3("viewer_pos", render_context.camera.pos);
+    object_shader.setFloat("shininess", shininess);
+    object_shader.setBool("show_normals", show_normals);
+    object_shader.setVec3("dir_light.direction", dir_light.direction);
+    object_shader.setVec3("dir_light.colour", dir_light.colour);
+    object_shader.setFloat("dir_light.ambient", dir_light.ambient);
+    object_shader.setFloat("dir_light.diffuse", dir_light.diffuse);
+    object_shader.setFloat("dir_light.specular", dir_light.specular);
+}
+
+void Renderer::renderScene(const RenderContext& render_context) {
+
+    Shader& object_shader = shader_lib.get("objects");
 
     glBindFramebuffer(GL_FRAMEBUFFER, multisample_fbo);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    if (!fill_polygons) { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }
     // Call object draw functions
     for (unsigned int i = 0; i < render_context.columns_to_be_rendered.size(); ++i) {
         if (render_context.chunks.count(render_context.columns_to_be_rendered[i]) == 0) { continue; }
-        render_context.chunks.at(render_context.columns_to_be_rendered[i]).draw(shader_lib.get("objects"));
+        render_context.chunks.at(render_context.columns_to_be_rendered[i]).draw(object_shader);
     }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }

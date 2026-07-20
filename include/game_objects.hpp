@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <array>
+#include <string>
 
 #include <glm/glm.hpp>
 
@@ -36,6 +37,14 @@ public:
     static constexpr float side_length = 1.0f;
 
     static std::map<BlockType, glm::vec3> block_type_colours;
+
+    static constexpr int32_t LEFT_FACE = 0;
+    static constexpr int32_t RIGHT_FACE = 1;
+    static constexpr int32_t DOWN_FACE = 2;
+    static constexpr int32_t UP_FACE = 3;
+    static constexpr int32_t BEHIND_FACE = 4;
+    static constexpr int32_t IN_FRONT_FACE = 5;
+
 
 private:
     BlockType type;
@@ -91,7 +100,7 @@ public:
 };
 
 struct VertexData {
-    short int packed_position;
+    int32_t packed_position;
     float colour_x;
     float colour_y;
     float colour_z;
@@ -169,7 +178,7 @@ private:
 
     bool dirtied = true;
 
-    unsigned int addVertex(glm::i32vec3 position, glm::vec3 colour);
+    unsigned int addVertex(glm::i32vec3 position, glm::vec3 colour, int32_t face);
     void addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2);
 };
 

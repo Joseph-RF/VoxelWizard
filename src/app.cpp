@@ -92,7 +92,7 @@ void App::checkCurrentChunk() {
     ColumnPos column_pos = chunk_pos.getColumnPos();
     if (!(column_pos == this->current_column_pos)) {
         this->current_column_pos = column_pos;
-        //this->current_chunk_pos = ChunkPos(0, 0, 0);
+        this->current_column_pos = ColumnPos(0, 0);
         updateChunkQueues();
         updateChunksToBeRendered();
     }
@@ -100,7 +100,7 @@ void App::checkCurrentChunk() {
 
 void App::updateColumnEdgeOccupancy(Column& column) {
 
-    static const std::array<std::pair<ChunkNeighbour, ChunkPos>, 6> column_neighbour_positions{ {
+    static const std::array<std::pair<ChunkNeighbour, ChunkPos>, 4> column_neighbour_positions{ {
         {ChunkNeighbour::LEFT, ChunkPos{-1, 0, 0}},
         {ChunkNeighbour::RIGHT, ChunkPos{1, 0, 0}},
         {ChunkNeighbour::BEHIND, ChunkPos{0, 0, -1}},
@@ -483,38 +483,48 @@ void App::renderImGUI() {
     // Object editor tab
     // -------------------------------------
     bool boolean = true;
-    if (ImGui::BeginTabItem("Object Editor", &boolean, ImGuiTabItemFlags_None)) {
+    if (ImGui::BeginTabItem("Tweak Rendering Parameters", &boolean, ImGuiTabItemFlags_None)) {
+        ImGui::Text("Camera position");
+        
         ImGui::InputFloat("x pos", &camera.pos.x, 0.25f, 1.0f,
                   "%.2f");
         ImGui::InputFloat("y pos", &camera.pos.y, 0.25f, 1.0f,
           "%.2f");
         ImGui::InputFloat("z pos", &camera.pos.z, 0.25f, 1.0f,
           "%.2f");
-        ImGui::Text("Modify the selected objects properties");
-        ImGui::EndTabItem();
-    }
 
-    // Objects selector tab
-    // -------------------------------------
-    if (ImGui::BeginTabItem("Objects Selector", &boolean, ImGuiTabItemFlags_None)) {
-        ImGui::Text("This is the objects selector tab");
-        ImGui::EndTabItem();
-    }
+        ImGui::NewLine();
 
-    // Object adder tab
-    // -------------------------------------
-    if (ImGui::BeginTabItem("Add Objects", &boolean, ImGuiTabItemFlags_None)) {
-        ImGui::Text("Add objects to the scene here");
+        ImGui::Text("Light direction");
+
+        ImGui::SetNextItemWidth(120.f);
+        ImGui::SliderFloat("x component", &renderer.dir_light.direction.x, -1.0f, 1.0f);
+        ImGui::SetNextItemWidth(120.f);
+        ImGui::SliderFloat("y component", &renderer.dir_light.direction.y, -1.0f, 1.0f);
+        ImGui::SetNextItemWidth(120.f);
+        ImGui::SliderFloat("z component", &renderer.dir_light.direction.z, -1.0f, 1.0f);
+
+        ImGui::Separator();
+        ImGui::Separator();
+
+        ImGui::ColorEdit3("Light Colour", glm::value_ptr(renderer.dir_light.colour));
+
+        ImGui::Separator();
+        ImGui::Separator();
+
+        ImGui::SetNextItemWidth(120.f);
+        ImGui::SliderFloat("Shininess", &renderer.shininess, 0.0f, 200.0f);
+
+        ImGui::Text("Toggle Normal Visualisation");
+        ImGui::Checkbox("Visualise Normals", &renderer.show_normals);
+
+        ImGui::Text("Toggle Fill Polygons");
+        ImGui::Checkbox("Fill Polygons", &renderer.fill_polygons);
+
         ImGui::EndTabItem();
     }
 
     ImGui::EndTabBar();
-    ImGui::End();
-
-    ImGui::SetNextWindowPos(ImVec2(window_x - (window_x * 0.15f), 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(window_x * 0.15f, window_y * 0.3f));
-    ImGui::Begin("Second menu");
-
     ImGui::End();
 }
 
