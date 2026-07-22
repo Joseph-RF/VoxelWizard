@@ -4,11 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-07-20
+## [Released] - 2026-07-22
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
+
+### [0.2.5]
+
+Update 0.2.5
+
+A voxel world without interesting terrain is quite boring. I added terrain to make it not boring. This was
+achieved primarily through a noise generator with blocks being assigned different colours depending on what
+height they're at.
+
+- Noise generator using [FastNoiseLite](https://github.com/Auburn/FastNoiseLite).
+- Values from the noise generator are then transformed to a height map used by Columns during their generation.
+- Blocks at different heights are assigned different block types to add colour to the terrain.
 
 ### [0.2.4]
 
@@ -105,7 +117,7 @@ from one chunk to another since it is checked when chunks are created
   - Neighbouring chunk is created (not yet implemented)
   - Neighbouring chunk is modified (not yet implemented)
 
-## [Unreleased] - 2026-07-20
+## [Unreleased] - 2026-07-22
 
 Here will write a vague roadmap of the upcoming updates and changes to the project.
 Not supposed to be very rigid and features will move from one planned update to the next.
@@ -113,13 +125,13 @@ Some features will be pushed further down the line, others will arrive earlier t
 I suspect many changes won't be planned for entirely.
 
 ### [0.3.0]
-
-- Terrain generation
+- Optimisation techniques to help boost frame rate and lower memory usage.
+- Aiming for a good framerate and reasonable memory usage at 32+ chunks of render distance.
 
 ### [0.3.0+]
 
-- Will definitely need to add further optimisation techniques such as frustum culling.
-- Look into more efficient ways to construct the vertices of a chunk with colour data
+- Tweak terrain generation further to look better. Delaying this till after the optimisation update.
+- Look into more efficient ways to construct the vertices of a chunk with colour data.
 
 ### [Future]
 

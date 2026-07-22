@@ -54,7 +54,8 @@ bool App::init() {
 }
 
 void App::initScene() {
-
+    // Set noise generator parameters
+    Column::configureNoiseGenerator();
 }
 
 void App::update() {
@@ -92,7 +93,7 @@ void App::checkCurrentChunk() {
     ColumnPos column_pos = chunk_pos.getColumnPos();
     if (!(column_pos == this->current_column_pos)) {
         this->current_column_pos = column_pos;
-        this->current_column_pos = ColumnPos(0, 0);
+        //this->current_column_pos = ColumnPos(0, 0);
         updateChunkQueues();
         updateChunksToBeRendered();
     }

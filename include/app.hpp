@@ -47,9 +47,9 @@ private:
     // Game data
     std::unordered_map<ColumnPos, Column, ColumnPosHashFunc> chunks;
     std::vector<ColumnPos> columns_to_be_rendered;
-    int render_distance = 1;
-    int mesh_distance = 1;
-    int chunk_distance = 1;
+    int render_distance = 16;
+    int mesh_distance = 16;
+    int chunk_distance = 16;
     //ChunkPos current_chunk_pos{10, 0, 10};
     ColumnPos current_column_pos{ 10, 10 };
 

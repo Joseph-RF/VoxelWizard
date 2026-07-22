@@ -164,7 +164,7 @@ void Renderer::processScreenResize(int new_window_width, int new_window_height) 
 void Renderer::renderPrep(Camera& camera) {
     // Render to multisample framebuffer to write to multisample texture
     glBindFramebuffer(GL_FRAMEBUFFER, multisample_fbo);
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(0.38f, 0.77f, 0.94f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 }

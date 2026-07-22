@@ -6,13 +6,20 @@
 #include <string>
 
 #include <glm/glm.hpp>
+#include "../third_party/fastnoiselite/FastNoiseLite.h"
 
 #include "shader.hpp"
 
 enum class BlockType {
     Grass,
+    Stone,
+    Snow,
+    Sand,
+    Water,
     Air
 };
+
+BlockType heightToBlockType(int height);
 
 enum class ChunkNeighbour {
     LEFT, // -X
@@ -128,7 +135,7 @@ struct Mesh {
 class Chunk {
 public:
     Chunk();
-    Chunk(ChunkPos chunk_pos);
+    Chunk(ChunkPos chunk_pos, const std::vector<int>& height_map);
 
     // Won't be using copy constructor or copy assignment (similar to mesh)
     Chunk(const Chunk& chunk) = delete;
@@ -206,7 +213,13 @@ struct Column {
     void destroyMeshes();
 
     static constexpr int COLUMN_HEIGHT = 16;
+    static constexpr int SEA_LEVEL = 16;
+    static constexpr int MOUNTAIN_PEAK = 200;
 
     ColumnPos column_pos;
     std::vector<Chunk> chunks; // 0 will be the chunk at the bottom, 15 will be the chunk at the top
+
+    // Perlin noise generator
+    static void configureNoiseGenerator();
+    static FastNoiseLite noise;
 };

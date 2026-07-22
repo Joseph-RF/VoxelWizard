@@ -5,6 +5,25 @@
 #include <array>
 #include <stddef.h>
 
+BlockType heightToBlockType(int height) {
+    if (height <= 16) {
+        return BlockType::Water;
+    }
+    else if (height <= 19) {
+        return BlockType::Sand;
+    }
+    else if (height <= 120) {
+        return BlockType::Grass;
+    }
+    else if (height <= 140) {
+        return BlockType::Stone;
+    }
+    else if (height <= 200) {
+        return BlockType::Snow;
+    }
+    return BlockType::Air;
+}
+
 ChunkNeighbour reverseChunkNeighbour(ChunkNeighbour chunk_neighbour) {
     switch (chunk_neighbour) {
     case ChunkNeighbour::LEFT:
@@ -32,8 +51,12 @@ ChunkNeighbour reverseChunkNeighbour(ChunkNeighbour chunk_neighbour) {
 }
 
 std::map<BlockType, glm::vec3> Block::block_type_colours {
-    {BlockType::Air, {1.0, 1.0, 1.0}}, // Air (shouldn't be drawn in the first place
-    {BlockType::Grass, {0.15, 0.6, 0.0}}
+    {BlockType::Air, {1.0, 1.0, 1.0}},
+    {BlockType::Grass, {0.15, 0.6, 0.0}},
+    {BlockType::Stone, {0.4, 0.4, 0.4}},
+    {BlockType::Snow, {0.8, 0.8, 0.8}},
+    {BlockType::Sand, {0.72, 0.67, 0.52}},
+    {BlockType::Water, {0.1, 0.1, 0.8}},
 };
 
 Block::Block() {
@@ -164,7 +187,7 @@ Chunk::Chunk() {
     }
 }
 
-Chunk::Chunk(ChunkPos chunk_pos) : chunk_pos(chunk_pos) {
+Chunk::Chunk(ChunkPos chunk_pos, const std::vector<int>& height_map) : chunk_pos(chunk_pos) {
     blocks = std::vector<Block>(CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE);
 
     std::fill(block_occupancy_x.begin(), block_occupancy_x.end(), 0);
@@ -172,9 +195,18 @@ Chunk::Chunk(ChunkPos chunk_pos) : chunk_pos(chunk_pos) {
     std::fill(block_occupancy_z.begin(), block_occupancy_z.end(), 0);
 
     for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
-        for (unsigned int j = 0; j < CHUNK_SIZE; j++) {
-            for (unsigned int k = 0; k < CHUNK_SIZE; k++) {
-                blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] = Block(BlockType::Grass);
+        for (unsigned int k = 0; k < CHUNK_SIZE; k++) {
+
+            int adjusted_height = height_map[i + k * CHUNK_SIZE] - chunk_pos.y * CHUNK_SIZE;
+            BlockType top_block_type = heightToBlockType(height_map[i + k * CHUNK_SIZE]);
+
+            for (unsigned int j = 0; j < CHUNK_SIZE; ++j) {
+                if (j <= adjusted_height && adjusted_height > 0) {
+                    blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] = top_block_type;
+                }
+                else {
+                    blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] = Block(BlockType::Air);
+                }
 
                 int bit = blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ].getBlockType() == BlockType::Air ? 0 : 1;
 
@@ -548,9 +580,26 @@ void Chunk::addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2
 }
 
 Column::Column(ColumnPos column_pos) : column_pos(column_pos) {
-    //TODO: Fill out the array containing the 16 chunks
+    // Find the height map for the column
+    std::vector<int> height_map(Chunk::CHUNK_SIZE_SQ);
+
+    for (int i = 0; i < Chunk::CHUNK_SIZE; ++i) {
+        for (int k = 0; k < Chunk::CHUNK_SIZE; ++k) {
+            int world_x_pos = i + column_pos.x * Chunk::CHUNK_SIZE;
+            int world_z_pos = k + column_pos.z * Chunk::CHUNK_SIZE;
+
+            float unit_height = (noise.GetNoise(float(world_x_pos) / 4.f, float(world_z_pos) / 4.f) + 1) * 0.5f;
+
+            unit_height = pow(unit_height, 5);
+
+            height_map[i + k * Chunk::CHUNK_SIZE] = unit_height * (MOUNTAIN_PEAK - SEA_LEVEL) + SEA_LEVEL;
+
+            //height_map[i + k * Chunk::CHUNK_SIZE] = (noise.GetNoise(float(world_x_pos), float(world_z_pos)) + 1) * Chunk::CHUNK_SIZE * COLUMN_HEIGHT * 0.5f;
+        }
+    }
+
     for (int i = 0; i < Column::COLUMN_HEIGHT; ++i) {
-        chunks.emplace_back(ChunkPos{ column_pos.x, i, column_pos.z });
+        chunks.emplace_back(ChunkPos{ column_pos.x, i, column_pos.z }, height_map);
     }
 }
 
@@ -620,4 +669,17 @@ void Column::destroyMeshes() {
     for (Chunk& chunk : chunks) {
         chunk.destroyMesh();
     }
+}
+
+FastNoiseLite Column::noise;
+
+void Column::configureNoiseGenerator() {
+    noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    noise.SetSeed(1337);
+    noise.SetFrequency(0.01);
+
+    noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+    noise.SetFractalOctaves(3);
+    noise.SetFractalLacunarity(2.0f);
+    noise.SetFractalGain(0.4f);
 }

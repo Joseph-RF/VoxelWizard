@@ -19,6 +19,7 @@ This project was built with the following third party dependencies:
 * [GLFW](https://www.glfw.org/)
 * [Glad](https://github.com/premake-libs/glad?tab=readme-ov-file)
 * [stb](https://github.com/nothings/stb)
+* [FastNoiseLite](https://github.com/Auburn/FastNoiseLite)
 
 ## Building Instructions
 
@@ -47,3 +48,5 @@ More optimisations
 Article for getting started on a voxel engine. At the end of the article there are a lot of
 pointers on how to improve it
 * [General Youtube Search for optimisations](https://www.youtube.com/results?search_query=voxel+engine+optimisations)
+* [I Optimised My Game Engine Up To 12000 FPS](https://www.youtube.com/watch?v=40JzyaOYJeY)
+* [Perlin Noise: A Procedural Generation Algorithm](https://rtouti.github.io/graphics/perlin-noise-algorithm)
