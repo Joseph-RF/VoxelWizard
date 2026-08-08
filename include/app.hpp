@@ -45,8 +45,8 @@ private:
     Renderer renderer;
 
     // Game data
-    static constexpr int WORLD_SIZE = 64;
-    static constexpr int HALF_WORLD_SIZE = 32;
+    static constexpr int WORLD_SIZE = 32;
+    static constexpr int HALF_WORLD_SIZE = 16;
     static constexpr int WORLD_SIZE_SQ = WORLD_SIZE * WORLD_SIZE;
     glm::vec2 world_centre_pos{ WORLD_SIZE * Chunk::CHUNK_SIZE * Block::side_length / 2.f,
                                 WORLD_SIZE * Chunk::CHUNK_SIZE * Block::side_length / 2.f };

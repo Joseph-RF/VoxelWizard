@@ -10,6 +10,34 @@ In this section, I'll be writing the series of updates and changes of the projec
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
 
+### [0.1.1]
+
+Update 0.1.1
+
+Instancing!
+
+Another performance focussed update. wInstead of a mesh for the entire chunk, will be using quads and drawing however many are required per chunk using
+instancing.
+
+Details:
+
+- **Going from**: Creating a single mesh for an entire chunk, where each face is drawn using two triangles and six
+vertices, where each verex carries an int32 worth of data.
+
+- **To**: Creating a quad mesh with four vertices and drawing a quad for each face using GL_TRIANGLE_STRIP then
+instancing the quad however many times is required for the chunk. The quad vertices only carry positional
+information in the quad. Position within the chunk, normal, and block_id is passed to the vertex shader once
+per instance (i.e. once per quad/face) using instanced arrays.
+
+- This reduces the amount of memory vertices occupy on the GPU by roughly 83% as only **1** int32 is needed per
+face instead of **6**.
+
+- Additionally, only 16 possible positions for each face is needed instead of 17 since vertices no longer need
+to store position within the chunk, just position within the quad meaning 3D position data per face only
+requires 4 bits instead of the previous 5.
+
+Using Vericidium's [I Optimised My Game Engine Up To 12000 FPS](https://www.youtube.com/watch?v=40JzyaOYJeY)
+
 ### [0.1.0]
 
 Update 0.1.0
@@ -44,13 +72,6 @@ Here will write a vague roadmap of the upcoming updates and changes to the proje
 Not supposed to be very rigid and features will move from one planned update to the next.
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
-
-### [0.1.1]
-
-Fairly quick and easy (hopefully) implementation of instanced quads.
-Drawn to be able to use quad strips and avoid 2 of the 6 vertices used to draw a quad (two triangles)
-Instance call will be done once per chunk so should primarily just be a reduction in data
-Using Vericidium'ss [I Optimised My Game Engine Up To 12000 FPS](https://www.youtube.com/watch?v=40JzyaOYJeY)
 
 ### [0.2.0]
 

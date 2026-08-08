@@ -54,7 +54,6 @@ public:
     static constexpr int32_t BEHIND_FACE = 4;
     static constexpr int32_t IN_FRONT_FACE = 5;
 
-
 private:
     BlockType type;
 };
@@ -125,10 +124,8 @@ struct Mesh {
     ~Mesh();
 
     unsigned int vbo = 0;
-    unsigned int ebo = 0;
+    unsigned int instance_array_vbo = 0;
     unsigned int vao = 0;
-
-    unsigned int indices_count = 0;
 };
 
 class Chunk {
@@ -180,9 +177,9 @@ private:
 
     bool dirtied = true;
     bool empty = true;
+    int face_count = 0;
 
-    unsigned int addVertex(glm::i32vec3 position, int8_t block_id, int32_t face);
-    void addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2);
+    void addQuad(glm::i32vec3 position, int8_t block_id, int32_t face);
 };
 
 struct Column {

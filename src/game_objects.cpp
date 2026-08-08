@@ -109,41 +109,53 @@ ColumnPos::ColumnPos() : x(0), z(0) {}
 ColumnPos::ColumnPos(int x, int z) : x(x), z(z) {}
 
 Mesh::Mesh(const std::vector<VertexData>& vertices, const std::vector<unsigned int>& indices) {
+    
+    static constexpr float quad_vertices[12] = {
+        // positions (x, y, z) for quad facing +y centred at origin (0, 0, 0)
+        -0.5f, 0.f, -0.5f,
+        -0.5f, 0.f,  0.5f,
+         0.5f, 0.f, -0.5f,
+         0.5f, 0.f,  0.5f,
+    };
+
+    // Configure instance array buffer
+    glGenBuffers(1, &instance_array_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, instance_array_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // Configure standard buffer and vertex array
     glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &ebo);
     glGenBuffers(1, &vbo);
 
     glBindVertexArray(vao);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), indices.data(), GL_STATIC_DRAW);
-
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
     // Will use AttribIPointer to keep the data in GLSL as an int and not cast to float
-    glVertexAttribIPointer(0, 1, GL_INT, sizeof(VertexData), (void*)(offsetof(VertexData, packed_vertex_data)));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glBindVertexArray(0);
+    // Set instance array data
+    glBindBuffer(GL_ARRAY_BUFFER, instance_array_vbo);
+    glVertexAttribIPointer(1, 1, GL_INT, sizeof(VertexData), (void*)(offsetof(VertexData, packed_vertex_data)));
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glVertexAttribDivisor(1, 1);
 
-    indices_count = indices.size();
+    glBindVertexArray(0);
 }
 
 Mesh::Mesh(Mesh &&mesh) noexcept {
 
     // Moving buffer data from mesh to this.
     this->vbo = mesh.vbo;
-    this->ebo = mesh.ebo;
+    this->instance_array_vbo = mesh.instance_array_vbo;
     this->vao = mesh.vao;
-    
-    this->indices_count = mesh.indices_count;
 
     mesh.vbo = 0;
-    mesh.ebo = 0;
+    mesh.instance_array_vbo = 0;
     mesh.vao = 0;
-
-    mesh.indices_count = 0;
 }
 
 Mesh& Mesh::operator=(Mesh &&mesh) noexcept {
@@ -153,27 +165,23 @@ Mesh& Mesh::operator=(Mesh &&mesh) noexcept {
 
     // Have already been initialised so need delete existing buffers and vertex arrays (assuming they exist)
     glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &ebo);
+    glDeleteBuffers(1, &instance_array_vbo);
     glDeleteBuffers(1, &vbo);
 
     this->vbo = mesh.vbo;
-    this->ebo = mesh.ebo;
+    this->instance_array_vbo = mesh.instance_array_vbo;
     this->vao = mesh.vao;
 
-    this->indices_count = mesh.indices_count;
-
     mesh.vbo = 0;
-    mesh.ebo = 0;
+    mesh.instance_array_vbo = 0;
     mesh.vao = 0;
-
-    mesh.indices_count = 0;
 
     return *this;
 }
 
 Mesh::~Mesh() {
     glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &ebo);
+    glDeleteBuffers(1, &instance_array_vbo);
     glDeleteBuffers(1, &vbo);
 }
 
@@ -255,6 +263,7 @@ Chunk::Chunk(Chunk &&chunk) noexcept {
 
     this->dirtied = chunk.dirtied;
     this->empty = chunk.empty;
+    this->face_count = chunk.face_count;
 
     // Moving mesh from chunk to this.
     this->mesh = std::move(chunk.mesh);
@@ -284,6 +293,7 @@ Chunk& Chunk::operator=(Chunk &&chunk) noexcept {
 
     this->dirtied = chunk.dirtied;
     this->empty = chunk.empty;
+    this->face_count = chunk.face_count;
 
     // By moving the data from chunk.mesh to this->mesh, data being held by this->mesh is released and destroyed?
     // Same for the data in chunk.mesh once it is passed to this->mesh
@@ -310,7 +320,7 @@ void Chunk::draw(Shader& shader) {
     );
     shader.setMat("model", model);
 
-    glDrawElements(GL_TRIANGLES, mesh->indices_count, GL_UNSIGNED_INT, 0);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, face_count);
     glBindVertexArray(0);
 }
 
@@ -345,44 +355,19 @@ void Chunk::generateVertices() {
             int32_t right_faces = row & ~(row << 1);
             int32_t left_faces = row & ~(row >> 1);
 
-            glm::i32vec3 p0, p1, p2, p3;
-            
-            unsigned int v0, v1, v2, v3;
-
             int8_t block_id;
 
             for (int i = 0; i < CHUNK_SIZE; i++) {
+
+                block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
+
                 if (((right_faces >> (CHUNK_SIZE - i)) & 1) == 1) {
-                    p0 = glm::vec3(i + 1, j + 1, k + 1);
-                    p1 = glm::vec3(i + 1, j, k + 1);
-                    p2 = glm::vec3(i + 1, j + 1, k);
-                    p3 = glm::vec3(i + 1, j, k);
 
-                    block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
-
-                    v0 = addVertex(p0, block_id, Block::RIGHT_FACE);
-                    v1 = addVertex(p1, block_id, Block::RIGHT_FACE);
-                    v2 = addVertex(p2, block_id, Block::RIGHT_FACE);
-                    v3 = addVertex(p3, block_id, Block::RIGHT_FACE);
-
-                    addTriangleIndices(v0, v1, v2);
-                    addTriangleIndices(v1, v3, v2);
+                    addQuad({i, j, k}, block_id, Block::RIGHT_FACE);
                 }
                 if (((left_faces >> (CHUNK_SIZE - i)) & 1) == 1) {
-                    p0 = glm::vec3(i, j + 1, k);
-                    p1 = glm::vec3(i, j, k);
-                    p2 = glm::vec3(i, j + 1, k + 1);
-                    p3 = glm::vec3(i, j, k + 1);
 
-                    block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
-
-                    v0 = addVertex(p0, block_id, Block::LEFT_FACE);
-                    v1 = addVertex(p1, block_id, Block::LEFT_FACE);
-                    v2 = addVertex(p2, block_id, Block::LEFT_FACE);
-                    v3 = addVertex(p3, block_id, Block::LEFT_FACE);
-
-                    addTriangleIndices(v0, v1, v2);
-                    addTriangleIndices(v1, v3, v2);
+                    addQuad({ i, j, k }, block_id, Block::LEFT_FACE);
                 }
             }
         }
@@ -398,44 +383,19 @@ void Chunk::generateVertices() {
             int32_t top_faces = row & ~(row << 1);
             int32_t bottom_faces = row & ~(row >> 1);
 
-            glm::i32vec3 p0, p1, p2, p3;
-
-            unsigned int v0, v1, v2, v3;
-
             int8_t block_id;
 
             for (int j = 0; j < CHUNK_SIZE; j++) {
+
+                block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
+
                 if (((top_faces >> (CHUNK_SIZE - j)) & 1) == 1) {
-                    p0 = glm::vec3(i, j + 1, k);
-                    p1 = glm::vec3(i, j + 1, k + 1);
-                    p2 = glm::vec3(i + 1, j + 1, k);
-                    p3 = glm::vec3(i + 1, j + 1, k + 1);
 
-                    block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
-
-                    v0 = addVertex(p0, block_id, Block::UP_FACE);
-                    v1 = addVertex(p1, block_id, Block::UP_FACE);
-                    v2 = addVertex(p2, block_id, Block::UP_FACE);
-                    v3 = addVertex(p3, block_id, Block::UP_FACE);
-
-                    addTriangleIndices(v0, v1, v2);
-                    addTriangleIndices(v1, v3, v2);
+                    addQuad({i, j, k}, block_id, Block::UP_FACE);
                 }
                 if (((bottom_faces >> (CHUNK_SIZE - j)) & 1) == 1) {
-                    p0 = glm::vec3(i, j, k + 1);
-                    p1 = glm::vec3(i, j, k);
-                    p2 = glm::vec3(i + 1, j, k + 1);
-                    p3 = glm::vec3(i + 1, j, k);
 
-                    block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
-
-                    v0 = addVertex(p0, block_id, Block::DOWN_FACE);
-                    v1 = addVertex(p1, block_id, Block::DOWN_FACE);
-                    v2 = addVertex(p2, block_id, Block::DOWN_FACE);
-                    v3 = addVertex(p3, block_id, Block::DOWN_FACE);
-
-                    addTriangleIndices(v0, v1, v2);
-                    addTriangleIndices(v1, v3, v2);
+                    addQuad({i, j, k}, block_id, Block::DOWN_FACE);
                 }
             }
         }
@@ -451,44 +411,19 @@ void Chunk::generateVertices() {
             int32_t back_faces = row & ~(row << 1);
             int32_t front_faces = row & ~(row >> 1);
 
-            glm::i32vec3 p0, p1, p2, p3;
-
-            unsigned int v0, v1, v2, v3;
-
             int8_t block_id;
 
             for (int k = 0; k < CHUNK_SIZE; k++) {
+
+                block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
+
                 if (((back_faces >> (k + 1)) & 1) == 1) {
-                    p0 = glm::vec3(i + 1, j + 1, k);
-                    p1 = glm::vec3(i + 1, j, k);
-                    p2 = glm::vec3(i, j + 1, k);
-                    p3 = glm::vec3(i, j, k);
 
-                    block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
-
-                    v0 = addVertex(p0, block_id, Block::BEHIND_FACE);
-                    v1 = addVertex(p1, block_id, Block::BEHIND_FACE);
-                    v2 = addVertex(p2, block_id, Block::BEHIND_FACE);
-                    v3 = addVertex(p3, block_id, Block::BEHIND_FACE);
-
-                    addTriangleIndices(v0, v1, v2);
-                    addTriangleIndices(v1, v3, v2);
+                    addQuad({i, j, k}, block_id, Block::BEHIND_FACE);
                 }
                 if (((front_faces >> (k + 1)) & 1) == 1) {
-                    p0 = glm::vec3(i, j + 1, k + 1);
-                    p1 = glm::vec3(i, j, k + 1);
-                    p2 = glm::vec3(i + 1, j + 1, k + 1);
-                    p3 = glm::vec3(i + 1, j, k + 1);
 
-                    block_id = blocks_new[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ];
-
-                    v0 = addVertex(p0, block_id, Block::IN_FRONT_FACE);
-                    v1 = addVertex(p1, block_id, Block::IN_FRONT_FACE);
-                    v2 = addVertex(p2, block_id, Block::IN_FRONT_FACE);
-                    v3 = addVertex(p3, block_id, Block::IN_FRONT_FACE);
-
-                    addTriangleIndices(v0, v1, v2);
-                    addTriangleIndices(v1, v3, v2);
+                    addQuad({i, j, k}, block_id, Block::IN_FRONT_FACE);
                 }
             }
         }
@@ -496,6 +431,10 @@ void Chunk::generateVertices() {
 
     vertices_generated = true;
     dirtied = false;
+
+    if (face_count == 0) {
+        do_not_draw = true;
+    }
 }
 
 void Chunk::generateMesh() {
@@ -572,37 +511,34 @@ void Chunk::destroyMesh() {
     dirtied = true;
 }
 
-unsigned int Chunk::addVertex(glm::i32vec3 vertex, int8_t block_id, int32_t face) {
+void Chunk::addQuad(glm::i32vec3 position, int8_t block_id, int32_t face) {
+    // Position corresponds to the 0, 0, 0 of the voxel a.k.a back left bottom corner
+    // regardless of orientation
+
     // TODO: NOTE, must change this if chunks change from 16x16x16
     // Packing positional information for three axes into a single 16 bit int
-    // x axis will be five right most bits (5 needed for 17 different positions)
-    // 3 extra bits needed for the six different face values (18)
-    // 8 bits given for the different possible block types there may be (26 total)
+    // x axis will be four right most bits (4 needed for 16 different positions)
+    // 3 extra bits needed for the six different face values (15)
+    // 8 bits given for the different possible block types there may be (23 total)
 
     int32_t packed_vertex = 0;
 
     // Positional data
-    packed_vertex |= vertex.x;
-    packed_vertex |= (vertex.y << 5);
-    packed_vertex |= (vertex.z << 10);
+    packed_vertex |= position.x;
+    packed_vertex |= (position.y << 4);
+    packed_vertex |= (position.z << 8);
 
     // Normal data
-    packed_vertex |= (face << 15);
+    packed_vertex |= (face << 12);
 
     // Block id data
-    packed_vertex |= (block_id << 18);
+    packed_vertex |= (block_id << 15);
 
     VertexData vertex_data{ packed_vertex };
 
     vertices.push_back(vertex_data);
 
-    return vertices.size() - 1;
-}
-
-void Chunk::addTriangleIndices(unsigned int v0, unsigned int v1, unsigned int v2) {
-    indices.push_back(v0);
-    indices.push_back(v1);
-    indices.push_back(v2);
+    face_count++;
 }
 
 Column::Column(ColumnPos column_pos) : column_pos(column_pos) {
