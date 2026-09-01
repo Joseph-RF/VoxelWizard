@@ -7,8 +7,10 @@ fighting off hordes of monsters and other wizards?
 
 Currently a work in progress...
 
-This project features a Change Log to keep track of the things that will be added and be able to reflect 
-on the changes the project goes through.
+This project features a detailed Change Log to keep track of the things that will be added and serves me to 
+be able to reflect on the changes the project goes through.
+
+<img src="GitHubAssets/Version-0_1_2.png" alt="Image of voxel terrain." width="750"/>
 
 ## Built With
 
