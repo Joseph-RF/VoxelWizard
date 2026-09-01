@@ -221,6 +221,9 @@ void App::renderImGUI() {
     // -------------------------------------
     bool boolean = true;
     if (ImGui::BeginTabItem("Tweak Rendering Parameters", &boolean, ImGuiTabItemFlags_None)) {
+        std::string fps_text = "FPS: " + std::to_string((int)std::round(1.f / delta_time));
+        ImGui::Text(fps_text.c_str());
+
         ImGui::Text("Camera position");
         
         ImGui::InputFloat("x pos", &camera.pos.x, 0.25f, 1.0f,

@@ -158,16 +158,17 @@ public:
     static constexpr int CHUNK_SIZE = 16;
     static constexpr int CHUNK_SIZE_SQ = CHUNK_SIZE * CHUNK_SIZE;
 
-    std::array<int8_t, CHUNK_SIZE_SQ * CHUNK_SIZE> blocks_new;
-    std::array<int32_t, CHUNK_SIZE_SQ> block_occupancy_x;
-    std::array<int32_t, CHUNK_SIZE_SQ> block_occupancy_y;
-    std::array<int32_t, CHUNK_SIZE_SQ> block_occupancy_z;
+    std::vector<int8_t> blocks;
+    std::vector<int32_t> block_occupancy_x;
+    std::vector<int32_t> block_occupancy_y;
+    std::vector<int32_t> block_occupancy_z;
 
     ChunkPos chunk_pos;
     bool vertices_generated = false;
     bool mesh_generated = false;
     // bool modified; TODO: Use this when block edition is added
     bool do_not_draw = false;
+    bool empty = true;
 
 private:
     std::vector<VertexData> vertices;
@@ -176,7 +177,6 @@ private:
     std::unique_ptr<Mesh> mesh;
 
     bool dirtied = true;
-    bool empty = true;
     int face_count = 0;
 
     void addQuad(glm::i32vec3 position, int8_t block_id, int32_t face);

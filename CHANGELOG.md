@@ -10,14 +10,30 @@ In this section, I'll be writing the series of updates and changes of the projec
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
 
+### [0.1.2]
+
+Update 0.1.2
+
+End of Summer Update :(
+
+Yet another performance focussed update + OpenGL 4.6! A short update though.
+
+Changing the block data within a chunk as well as the occupancy data to be vectors, that way, whenever there is
+an empty chunk, those vectors are set to an empty vector to save on space. Measurements using the terrain generation
+at this point in the project yielded a roughly 52% reduction in RAM usage per column in the scene (column in this
+case refers to both empty and non-empty columns). Pretty good for a handful of lines!
+
+A few tweaks here and there as well as the aforementioned upgrade to OpenGL 4.6. Note may downgrade in the future
+if no 4.6-specific features are used for the purpose of compatibility.
+
 ### [0.1.1]
 
 Update 0.1.1
 
 Instancing!
 
-Another performance focussed update. wInstead of a mesh for the entire chunk, will be using quads and drawing however many are required per chunk using
-instancing.
+Another performance focussed update. Instead of a mesh for the entire chunk, will be using quads and drawing
+however many are required per chunk using instancing.
 
 Details:
 

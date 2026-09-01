@@ -11,8 +11,8 @@ GLFWWindowManager::GLFWWindowManager(int window_width, int window_height,
 
 bool GLFWWindowManager::createWindow() {
     glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
     // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); Needed for Mac OS X
@@ -61,7 +61,7 @@ bool GLFWWindowManager::createWindow() {
     (void)io;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui_ImplOpenGL3_Init("#version 460");
 
     // Set ImGui style using utility function
     ImGuiStyle& style = ImGui::GetStyle();
