@@ -1,10 +1,12 @@
 #pragma once
 
-#include <camera.hpp>
-#include <memory>
-#include <shader.hpp>
+#include "camera.hpp"
+#include "shader.hpp"
 #include "game_objects.hpp"
+#include "resourcemanager.hpp"
+#include "player.hpp"
 
+#include <memory>
 #include <vector>
 
 struct DirLight {
@@ -20,7 +22,9 @@ struct DirLight {
 struct RenderContext {
     // Throw objects to be rendered in here
     Camera& camera;
+    ResourceManager& resource_manager;
     std::vector<Column>& columns;
+    Player& player;
 };
 
 class Renderer {
@@ -53,6 +57,7 @@ private:
     void renderPrep(Camera& camera);
     void setUniforms(const RenderContext& render_context);
     void renderScene(const RenderContext& render_context);
+    void renderPlayer(const RenderContext& render_context);
     void renderScreen();
 
     // Window properties
@@ -72,7 +77,8 @@ private:
     unsigned int multisample_fbo;
     unsigned int multisample_rbo;
     unsigned int intermediate_fbo;
-    unsigned int ubo;
+    unsigned int matrices_ubo;
+    unsigned int block_data_ubo;
 
     // Screen quad buffers
     unsigned int screen_vbo;

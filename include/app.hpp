@@ -12,6 +12,8 @@
 #include "glfwwindowmanager.hpp"
 #include "renderer.hpp"
 #include "game_objects.hpp"
+#include "resourcemanager.hpp"
+#include "player.hpp"
 
 class App {
 public:
@@ -44,6 +46,9 @@ private:
     // Renderer
     Renderer renderer;
 
+    // Resource Manager
+    ResourceManager resource_manager;
+
     // Game data
     static constexpr int WORLD_SIZE = 32;
     static constexpr int HALF_WORLD_SIZE = 16;
@@ -53,6 +58,8 @@ private:
     std::vector<Column> columns;
     ColumnPos current_column_pos{ 10, 10 };
 
+    Player player;
+
     // ----- Concurrency -----
 
     std::future<void> helper_thread;
@@ -61,6 +68,7 @@ private:
     // Initialising functions
     bool init();
 
+    void initModels();
     void initScene();
 
     // Updating functions

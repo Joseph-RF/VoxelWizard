@@ -62,6 +62,7 @@ if(PRODUCTION_BUILD)
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="./resources/")
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC SHADERS_PATH="./resources/shaders/")
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC TEXTURES_PATH="./resources/textures/")
+	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC MODELS_PATH="./resources/models/")
 
 	# remove the option to debug asserts.
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC PRODUCTION_BUILD=1)
@@ -72,6 +73,7 @@ else()
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC RESOURCES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/")
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC SHADERS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/shaders/")
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC TEXTURES_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/textures/")
+	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/resources/models/")
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC PRODUCTION_BUILD=0)
 	target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC DEVELOPMENT_BUILD=1)
 

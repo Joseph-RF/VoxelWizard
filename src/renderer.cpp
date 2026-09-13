@@ -61,12 +61,16 @@ void Renderer::render(const RenderContext& render_context) {
     // Render scene
     renderScene(render_context);
 
+    // Render the player
+    renderPlayer(render_context);
+
     // Render to screen
     renderScreen();
 }
 
 void Renderer::initShaders() {
-    shader_lib.create("objects", SHADERS_PATH "vshader.glsl", SHADERS_PATH "fshader.glsl", "");
+    shader_lib.create("chunks", SHADERS_PATH "chunk_vshader.glsl", SHADERS_PATH "chunk_fshader.glsl", "");
+    shader_lib.create("player", SHADERS_PATH "player_vshader.glsl", SHADERS_PATH "player_fshader.glsl", "");
     shader_lib.create("screen", SHADERS_PATH "screen_vshader.glsl",
                       SHADERS_PATH "screen_fshader.glsl", "");
 }
@@ -92,23 +96,35 @@ void Renderer::initUBOs() {
          {0.1, 0.1, 0.8, 1.0},
     };
 
-    unsigned int objects_shader_id = shader_lib.get("objects").ID;
+    unsigned int chunks_shader_id = shader_lib.get("chunks").ID;
+    unsigned int player_shader_id = shader_lib.get("player").ID;
 
-    unsigned int uniform_block_index = glGetUniformBlockIndex(objects_shader_id, "buffer_objects");
-    glUniformBlockBinding(objects_shader_id, uniform_block_index, 0); // Will set buffer_objects binding to 0
+    unsigned int matrices_index_chunks = glGetUniformBlockIndex(chunks_shader_id, "Matrices");
+    unsigned int block_data_index_chunks = glGetUniformBlockIndex(chunks_shader_id, "BlockData");
+    unsigned int matrices_index_player = glGetUniformBlockIndex(player_shader_id, "Matrices");
 
-    // Create uniform buffer object
-    glGenBuffers(1, &ubo);
+    glUniformBlockBinding(chunks_shader_id, matrices_index_chunks, 0); // Will set Matrices binding to 0
+    glUniformBlockBinding(chunks_shader_id, block_data_index_chunks, 1); // Will set BlockData binding to 0
+    glUniformBlockBinding(player_shader_id, matrices_index_player, 0); // Will set Matrices binding to 0
 
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-    glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4) + sizeof(normals) + sizeof(colours), NULL, GL_STATIC_DRAW);
+    // Create uniform buffer objects
+    glGenBuffers(1, &matrices_ubo);
+    glGenBuffers(1, &block_data_ubo);
+
+    glBindBuffer(GL_UNIFORM_BUFFER, matrices_ubo);
+    glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), NULL, GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    glBindBufferRange(GL_UNIFORM_BUFFER, 0, ubo, 0, 2 * sizeof(glm::mat4) + sizeof(normals) + sizeof(colours));
+    glBindBuffer(GL_UNIFORM_BUFFER, block_data_ubo);
+    glBufferData(GL_UNIFORM_BUFFER, sizeof(normals) + sizeof(colours), NULL, GL_STATIC_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-    glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(normals), normals);
-    glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4) + sizeof(normals), sizeof(colours), colours);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 0, matrices_ubo);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, block_data_ubo);
+
+    glBindBuffer(GL_UNIFORM_BUFFER, block_data_ubo);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(normals), normals);
+    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(normals), sizeof(colours), colours);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
@@ -218,7 +234,8 @@ void Renderer::renderPrep(Camera& camera) {
 
 void Renderer::setUniforms(const RenderContext& render_context) {
     // Set uniforms that are consistent between vertices
-    Shader& object_shader = shader_lib.get("objects");
+    Shader& chunk_shader = shader_lib.get("chunks");
+    Shader& player_shader = shader_lib.get("player");
     // View and projection matrices won't change between objects
     glm::mat4 view = render_context.camera.lookAt();
     glm::mat4 projection = glm::perspective(
@@ -235,38 +252,60 @@ void Renderer::setUniforms(const RenderContext& render_context) {
         );
     }
 
-    glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+    glBindBuffer(GL_UNIFORM_BUFFER, matrices_ubo);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));
     glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // Vertex shader uniforms
-    object_shader.use();
-    object_shader.setFloat("side_length", Block::side_length);
+    chunk_shader.use();
+    chunk_shader.setFloat("side_length", Block::side_length);
 
-    // Fragment shader uniforms
-    object_shader.setVec3("viewer_pos", render_context.camera.pos);
-    object_shader.setFloat("shininess", shininess);
-    object_shader.setBool("show_normals", show_normals);
-    object_shader.setVec3("dir_light.direction", dir_light.direction);
-    object_shader.setVec3("dir_light.colour", dir_light.colour);
-    object_shader.setFloat("dir_light.ambient", dir_light.ambient);
-    object_shader.setFloat("dir_light.diffuse", dir_light.diffuse);
-    object_shader.setFloat("dir_light.specular", dir_light.specular);
+    // Fragment shader uniforms for chunk shader
+    chunk_shader.setVec3("viewer_pos", render_context.camera.pos);
+    chunk_shader.setFloat("shininess", shininess);
+    chunk_shader.setBool("show_normals", show_normals);
+    chunk_shader.setVec3("dir_light.direction", dir_light.direction);
+    chunk_shader.setVec3("dir_light.colour", dir_light.colour);
+    chunk_shader.setFloat("dir_light.ambient", dir_light.ambient);
+    chunk_shader.setFloat("dir_light.diffuse", dir_light.diffuse);
+    chunk_shader.setFloat("dir_light.specular", dir_light.specular);
+
+    player_shader.use();
+    player_shader.setVec3("viewer_pos", render_context.camera.pos);
+    player_shader.setFloat("shininess", shininess);
+    player_shader.setVec3("dir_light.direction", dir_light.direction);
+    player_shader.setVec3("dir_light.colour", dir_light.colour);
+    player_shader.setFloat("dir_light.ambient", dir_light.ambient);
+    player_shader.setFloat("dir_light.diffuse", dir_light.diffuse);
+    player_shader.setFloat("dir_light.specular", dir_light.specular);
 }
 
 void Renderer::renderScene(const RenderContext& render_context) {
 
-    Shader& object_shader = shader_lib.get("objects");
+    Shader& chunk_shader = shader_lib.get("chunks");
 
     glBindFramebuffer(GL_FRAMEBUFFER, multisample_fbo);
 
     if (!fill_polygons) { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }
     // Call object draw functions
     for (Column& column : render_context.columns) {
-        column.draw(object_shader);
+        column.draw(chunk_shader);
     }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+}
+
+void Renderer::renderPlayer(const RenderContext& render_context) {
+
+    // Check if the player mesh exists
+    Mesh* mesh = render_context.resource_manager.tryGetMesh(render_context.player.mesh_id);
+    
+    if (mesh == nullptr) {
+        std::cout << "No mesh found for the player" << std::endl;
+        return;
+    }
+
+    render_context.player.draw(*mesh, shader_lib.get("player"));
 }
 
 void Renderer::renderScreen() {

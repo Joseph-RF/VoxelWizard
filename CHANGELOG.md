@@ -4,11 +4,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-08-06
+## [Released] - 2026-09-13
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
+
+### [0.1.3]
+
+Update 0.1.3
+
+The Wizard appears! (Or at least a strange placeholder for it)
+
+#### Resource Manager
+
+Adding a resource manager for meshes that will be used by several entities which will definitely be the case for enemies
+but just getting ahead of that potential problem now. It features a method to parse .obj files directly into meshes for
+actors such as the player
+
+Currently, object models are initialised in a method of the App class since the App class is currently the one holding
+onto the resource manager. I am considering moving this to the renderer, but for now it'll sit in the App.
+
+#### Player
+
+This is far less interesting and just holds onto the position, rotation, size and mesh of the player. Not much to see in
+this class. For now.
+
+The App will hold onto the player as well as other future actors such as enemies.
+
+#### Other changes
+
+RenderContext modified to now include resource manager and player data. Need to get that information to the renderer
+somehow. This is one of those reasons "for" the moving of the resource manager to the renderer.
+
+Did some work on Chunks and Columns to lower memory usage. Removed obsolete "indices" data member from Chunk. Empty
+chunks, on top of now having any block data, now no longer have a mesh. Added a check in the generateMesh method for
+empty chunks.
+
+Moved the generation of block data from a height map, to a separate function instead of sitting in the Chunk constructor
+
+Moved the Mesh class to its own file as it is no longer unique to Chunks. Modified Mesh to now accept indexed vertex
+data for Mesh generation on top of the previous non-indexed Chunk meshes. This was done to work with the data coming in
+from .obj files.
+
+#### Things to keep in mind
+
+Doing some slightly dangerous behaviour where resource manager's tryGetMesh returns a raw pointer from a unique
+pointer it owns. Will need to be careful with the usage.
+
+How should the lifetime of models work? Are all models loaded in and stay until the end of the program?
 
 ### [0.1.2]
 
@@ -82,22 +126,19 @@ Main changes with regards to the Infinite Voxel Terrain project:
 function call) by simply adding around 10 lines of code.
 - Removed code that won't be needed in this project that comes from Infinite Voxel Terrain
 
-## [Unreleased] - 2026-08-06
+## [Unreleased] - 2026-09-13
 
 Here will write a vague roadmap of the upcoming updates and changes to the project.
 Not supposed to be very rigid and features will move from one planned update to the next.
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
 
-### [0.2.0]
+### [0.1.4]
 
-Next step in instancing where instead of using one draw call per chunk, use one draw call for all chunks
-involved.
+Commands and moving The Wizard around. Will feature displacement and rotations as well as a Camera Deadzone!
+Wow!
 
-Will need to use OpenGL 4.2+
-
-Once again, using Vericidium's
-[I Optimised My Game Engine Up To 12000 FPS](https://www.youtube.com/watch?v=40JzyaOYJeY)
+This should hopefully be a shorter update than the previous.
 
 ### [Future]
 

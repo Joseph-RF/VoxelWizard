@@ -48,9 +48,15 @@ bool App::init() {
 
     renderer.init();
 
+    initModels();
     initScene();
 
     return true;
+}
+
+void App::initModels() {
+    resource_manager.createMeshFromObj("player", MODELS_PATH "wizardplaceholder.obj");
+    player.setMeshID("player");
 }
 
 void App::initScene() {
@@ -142,10 +148,10 @@ void App::runActions() {
             camera.processKeyboard(RIGHT, delta_time);
             break;
         case Action::MOVE_UP:
-            camera.processKeyboard(UP, delta_time);
+            //camera.processKeyboard(UP, delta_time);
             break;
         case Action::MOVE_DOWN:
-            camera.processKeyboard(DOWN, delta_time);
+            //camera.processKeyboard(DOWN, delta_time);
             break;
         case Action::TURN: {
             float mouse_xoffset = event_manager->events.front().mouse_xpos - last_mouse_xpos;
@@ -200,7 +206,7 @@ void App::render() {
     window_manager->newImGuiFrame();
 
     // Render scene
-    renderer.render(RenderContext{camera, columns});
+    renderer.render(RenderContext{camera, resource_manager, columns, player});
 
     // After drawing OpenGL objects, draw ImGUI
     renderImGUI();

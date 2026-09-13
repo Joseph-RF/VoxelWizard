@@ -11,6 +11,9 @@ This project features a detailed Change Log to keep track of the things that wil
 be able to reflect on the changes the project goes through.
 
 <img src="GitHubAssets/Version-0_1_2.png" alt="Image of voxel terrain." width="750"/>
+1. Perlin Noise Generated terrain showing how block data is rendered.
+<img src="GitHubAssets/Version-0_1_3.png" alt="Image of voxel terrain." width="750"/>
+2. Featureless terrain with a placeholder model for The Wizard (a.k.a the player) sitting in the middle.
 
 ## Built With
 

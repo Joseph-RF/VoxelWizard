@@ -6,7 +6,10 @@
 #include <stddef.h>
 
 BlockType heightToBlockType(int height) {
-    if (height <= 16) {
+    if (height <= 1) {
+        return BlockType::Stone;
+    }
+    else if (height <= 16) {
         return BlockType::Water;
     }
     else if (height <= 19) {
@@ -108,83 +111,6 @@ ColumnPos::ColumnPos() : x(0), z(0) {}
 
 ColumnPos::ColumnPos(int x, int z) : x(x), z(z) {}
 
-Mesh::Mesh(const std::vector<VertexData>& vertices, const std::vector<unsigned int>& indices) {
-    
-    static constexpr float quad_vertices[12] = {
-        // positions (x, y, z) for quad facing +y centred at origin (0, 0, 0)
-        -0.5f, 0.f, -0.5f,
-        -0.5f, 0.f,  0.5f,
-         0.5f, 0.f, -0.5f,
-         0.5f, 0.f,  0.5f,
-    };
-
-    // Configure instance array buffer
-    glGenBuffers(1, &instance_array_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, instance_array_vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VertexData) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // Configure standard buffer and vertex array
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-
-    glBindVertexArray(vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), quad_vertices, GL_STATIC_DRAW);
-    // Will use AttribIPointer to keep the data in GLSL as an int and not cast to float
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Set instance array data
-    glBindBuffer(GL_ARRAY_BUFFER, instance_array_vbo);
-    glVertexAttribIPointer(1, 1, GL_INT, sizeof(VertexData), (void*)(offsetof(VertexData, packed_vertex_data)));
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glVertexAttribDivisor(1, 1);
-
-    glBindVertexArray(0);
-}
-
-Mesh::Mesh(Mesh &&mesh) noexcept {
-
-    // Moving buffer data from mesh to this.
-    this->vbo = mesh.vbo;
-    this->instance_array_vbo = mesh.instance_array_vbo;
-    this->vao = mesh.vao;
-
-    mesh.vbo = 0;
-    mesh.instance_array_vbo = 0;
-    mesh.vao = 0;
-}
-
-Mesh& Mesh::operator=(Mesh &&mesh) noexcept {
-    if (this == &mesh) {
-        return *this;
-    }
-
-    // Have already been initialised so need delete existing buffers and vertex arrays (assuming they exist)
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &instance_array_vbo);
-    glDeleteBuffers(1, &vbo);
-
-    this->vbo = mesh.vbo;
-    this->instance_array_vbo = mesh.instance_array_vbo;
-    this->vao = mesh.vao;
-
-    mesh.vbo = 0;
-    mesh.instance_array_vbo = 0;
-    mesh.vao = 0;
-
-    return *this;
-}
-
-Mesh::~Mesh() {
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &instance_array_vbo);
-    glDeleteBuffers(1, &vbo);
-}
-
 Chunk::Chunk() {
     std::cout<<"Default constructor used"<<std::endl;
 
@@ -213,7 +139,7 @@ Chunk::Chunk() {
 
 Chunk::Chunk(ChunkPos chunk_pos, const std::vector<int>& height_map) : chunk_pos(chunk_pos) {
 
-    blocks = std::vector<int8_t>(CHUNK_SIZE_SQ * CHUNK_SIZE, 0);
+    generateBlockData(height_map);
 
     block_occupancy_x = std::vector<int32_t>(CHUNK_SIZE_SQ, 0);
     block_occupancy_y = std::vector<int32_t>(CHUNK_SIZE_SQ, 0);
@@ -224,10 +150,10 @@ Chunk::Chunk(ChunkPos chunk_pos, const std::vector<int>& height_map) : chunk_pos
 
             int adjusted_height = height_map[i + k * CHUNK_SIZE] - chunk_pos.y * CHUNK_SIZE;
             BlockType top_block_type = heightToBlockType(height_map[i + k * CHUNK_SIZE]);
+            int8_t air_int8 = Block::block_type_to_int8[BlockType::Air];
 
             for (unsigned int j = 0; j < CHUNK_SIZE; ++j) {
-                if (j <= adjusted_height && adjusted_height > 0) {
-                    blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] = Block::block_type_to_int8[top_block_type];
+                if (blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] != air_int8) {
 
                     // Storing the occupancy of blocks in the three arrays for the three directions
                     // Adding 1 bit on either side for padding
@@ -235,14 +161,8 @@ Chunk::Chunk(ChunkPos chunk_pos, const std::vector<int>& height_map) : chunk_pos
                     block_occupancy_x[j + k * CHUNK_SIZE] |= (1 << (CHUNK_SIZE - i)); // Bits on the left represent blocks on the left -x
                     block_occupancy_y[i + k * CHUNK_SIZE] |= (1 << (CHUNK_SIZE - j)); // Bits on the left represent blocks on the bottom -y
                     block_occupancy_z[i + j * CHUNK_SIZE] |= (1 << (k + 1)); // Bits on the left represent blocks at the front +z
-
-                    empty = false;
                 }
-                else {
-                    blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] = Block::block_type_to_int8[BlockType::Air];
-
-                    // Don't need to do any bit manipulations if block is air since empty is the default
-                }
+                // Don't need to do any bit manipulations if block is air since empty is the default
             }
         }
     }
@@ -271,7 +191,6 @@ Chunk::Chunk(Chunk &&chunk) noexcept {
     this->do_not_draw = chunk.do_not_draw;
 
     this->vertices = std::move(chunk.vertices);
-    this->indices = std::move(chunk.indices);
 
     this->dirtied = chunk.dirtied;
     this->empty = chunk.empty;
@@ -301,7 +220,6 @@ Chunk& Chunk::operator=(Chunk &&chunk) noexcept {
     this->do_not_draw = chunk.do_not_draw;
 
     this->vertices = std::move(chunk.vertices);
-    this->indices = std::move(chunk.indices);
 
     this->dirtied = chunk.dirtied;
     this->empty = chunk.empty;
@@ -313,11 +231,33 @@ Chunk& Chunk::operator=(Chunk &&chunk) noexcept {
     return *this;
 }
 
+void Chunk::generateBlockData(const std::vector<int>& height_map) {
+
+    // Fill with default air blocks
+    blocks = std::vector<int8_t>(CHUNK_SIZE * CHUNK_SIZE_SQ, Block::block_type_to_int8[BlockType::Air]);
+    empty = true;
+
+    for (unsigned int i = 0; i < CHUNK_SIZE; i++) {
+        for (unsigned int k = 0; k < CHUNK_SIZE; k++) {
+
+            int adjusted_height = height_map[i + k * CHUNK_SIZE] - chunk_pos.y * CHUNK_SIZE;
+            BlockType top_block_type = heightToBlockType(height_map[i + k * CHUNK_SIZE]);
+
+            for (unsigned int j = 0; j < CHUNK_SIZE; ++j) {
+                if (j <= adjusted_height && adjusted_height > 0) {
+                    blocks[i + j * CHUNK_SIZE + k * CHUNK_SIZE_SQ] = Block::block_type_to_int8[top_block_type];
+                    empty = false;
+                }
+            }
+        }
+    }
+}
+
 void Chunk::draw(Shader& shader) {
 
     if (mesh == nullptr) {
-        std::cout << "Chunk at chunk position: " << chunk_pos.x << " " << chunk_pos.y << " " << chunk_pos.z <<
-                " is trying to draw but its mesh hasn't been generated yet" << std::endl;
+        //std::cout << "Chunk at chunk position: " << chunk_pos.x << " " << chunk_pos.y << " " << chunk_pos.z <<
+        //        " is trying to draw but its mesh hasn't been generated yet" << std::endl;
         return;
     }
 
@@ -348,7 +288,6 @@ void Chunk::generateVertices() {
 
     // Ensure vectors are empty
     std::vector<VertexData>().swap(vertices);
-    std::vector<unsigned int>().swap(indices);
     do_not_draw = false;
 
     if (empty) {
@@ -451,19 +390,18 @@ void Chunk::generateVertices() {
 }
 
 void Chunk::generateMesh() {
-    if (mesh_generated) {return;}
+    if (mesh_generated || empty) {return;}
 
-    mesh = std::make_unique<Mesh>(vertices, indices);
+    mesh = std::make_unique<Mesh>(vertices);
 
     // Empty vertices and indices as they aren't needed
     std::vector<VertexData>().swap(vertices);
-    std::vector<unsigned int>().swap(indices);
 
     mesh_generated = true;
 }
 
 void Chunk::refreshMesh() {
-    std::unique_ptr<Mesh> temp_mesh = std::make_unique<Mesh>(vertices, indices);
+    std::unique_ptr<Mesh> temp_mesh = std::make_unique<Mesh>(vertices);
     mesh = std::move(temp_mesh);
 }
 
@@ -553,7 +491,6 @@ void Chunk::padOccupancy(const Chunk& source, const ChunkNeighbour neighbour_pos
 void Chunk::destroyMesh() {
     mesh = nullptr;
     std::vector<VertexData>().swap(vertices);
-    std::vector<unsigned int>().swap(indices);
     mesh_generated = false;
     vertices_generated = false;
     dirtied = true;
@@ -591,22 +528,8 @@ void Chunk::addQuad(glm::i32vec3 position, int8_t block_id, int32_t face) {
 
 Column::Column(ColumnPos column_pos) : column_pos(column_pos) {
     // Find the height map for the column
-    std::vector<int> height_map(Chunk::CHUNK_SIZE_SQ);
-
-    for (int i = 0; i < Chunk::CHUNK_SIZE; ++i) {
-        for (int k = 0; k < Chunk::CHUNK_SIZE; ++k) {
-            int world_x_pos = i + column_pos.x * Chunk::CHUNK_SIZE;
-            int world_z_pos = k + column_pos.z * Chunk::CHUNK_SIZE;
-
-            float unit_height = (noise.GetNoise(float(world_x_pos) / 4.f, float(world_z_pos) / 4.f) + 1) * 0.5f;
-
-            unit_height = pow(unit_height, 5);
-
-            height_map[i + k * Chunk::CHUNK_SIZE] = unit_height * (MOUNTAIN_PEAK - SEA_LEVEL) + SEA_LEVEL;
-
-            //height_map[i + k * Chunk::CHUNK_SIZE] = (noise.GetNoise(float(world_x_pos), float(world_z_pos)) + 1) * Chunk::CHUNK_SIZE * COLUMN_HEIGHT * 0.5f;
-        }
-    }
+    std::vector<int> height_map;
+    generateColumnHeightMap(height_map);
 
     for (int i = 0; i < Column::COLUMN_HEIGHT; ++i) {
         chunks.emplace_back(ChunkPos{ column_pos.x, i, column_pos.z }, height_map);
@@ -643,6 +566,30 @@ const Chunk& Column::operator[](int index) const {
         return chunks[0];
     }
     return chunks[index];
+}
+
+void Column::generateColumnHeightMap(std::vector<int>& height_map) {
+    height_map = std::vector<int>(Chunk::CHUNK_SIZE_SQ, 1);
+
+    /*
+    * 
+    * Perlin Noise Generated Terrain
+    * 
+    for (int i = 0; i < Chunk::CHUNK_SIZE; ++i) {
+        for (int k = 0; k < Chunk::CHUNK_SIZE; ++k) {
+            int world_x_pos = i + column_pos.x * Chunk::CHUNK_SIZE;
+            int world_z_pos = k + column_pos.z * Chunk::CHUNK_SIZE;
+
+            float unit_height = (noise.GetNoise(float(world_x_pos) / 4.f, float(world_z_pos) / 4.f) + 1) * 0.5f;
+
+            unit_height = pow(unit_height, 5);
+
+            height_map[i + k * Chunk::CHUNK_SIZE] = unit_height * (MOUNTAIN_PEAK - SEA_LEVEL) + SEA_LEVEL;
+
+            //height_map[i + k * Chunk::CHUNK_SIZE] = (noise.GetNoise(float(world_x_pos), float(world_z_pos)) + 1) * Chunk::CHUNK_SIZE * COLUMN_HEIGHT * 0.5f;
+        }
+    }
+    */
 }
 
 void Column::draw(Shader& shader) {

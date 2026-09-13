@@ -11,11 +11,14 @@ out vec3 normal;
 out vec3 fragment_pos;
 out vec3 colour;
 
-layout (std140) uniform buffer_objects {
+layout (std140) uniform Matrices {
     mat4 projection;         // Starts at 0,   ends at 64
     mat4 view;               // Starts at 64,  ends at 128
-    vec3 normals[6];         // Starts at 128, ends at 224
-    vec3 block_colours[6];   // Starts at 224, ends at 320
+};
+
+layout (std140) uniform BlockData {
+    vec3 normals[6];         // Starts at 0, ends at 96
+    vec3 block_colours[6];   // Starts at 96, ends at 192
 };
 
 vec3 topToXFace(vec3 pos, int face_id);

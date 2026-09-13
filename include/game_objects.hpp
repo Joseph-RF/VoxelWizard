@@ -9,6 +9,7 @@
 #include "../third_party/fastnoiselite/FastNoiseLite.h"
 
 #include "shader.hpp"
+#include "mesh.hpp"
 
 enum class BlockType {
     Grass,
@@ -107,27 +108,6 @@ public:
     }
 };
 
-struct VertexData {
-    int32_t packed_vertex_data;
-};
-
-struct Mesh {
-    Mesh(const std::vector<VertexData>& vertices, const std::vector<unsigned int>& indices);
-
-    // Won't be using copy constructor or copy assignment
-    Mesh(const Mesh& mesh) = delete;
-    Mesh& operator=(const Mesh& mesh) = delete;
-
-    Mesh(Mesh&& mesh) noexcept;
-    Mesh& operator=(Mesh&& mesh) noexcept;
-
-    ~Mesh();
-
-    unsigned int vbo = 0;
-    unsigned int instance_array_vbo = 0;
-    unsigned int vao = 0;
-};
-
 class Chunk {
 public:
     Chunk();
@@ -141,6 +121,8 @@ public:
     Chunk& operator=(Chunk&& chunk) noexcept;
 
     ~Chunk() = default;
+
+    void generateBlockData(const std::vector<int>& height_map);
 
     void update(float dt);
     void draw(Shader& shader);
@@ -172,9 +154,8 @@ public:
 
 private:
     std::vector<VertexData> vertices;
-    std::vector<unsigned int> indices;
 
-    std::unique_ptr<Mesh> mesh;
+    std::unique_ptr<Mesh> mesh = nullptr;
 
     bool dirtied = true;
     int face_count = 0;
@@ -196,6 +177,8 @@ struct Column {
 
     Chunk& operator[](int index);
     const Chunk& operator[](int index) const;
+
+    void generateColumnHeightMap(std::vector<int>& height_map);
 
     void draw(Shader& shader);
 
