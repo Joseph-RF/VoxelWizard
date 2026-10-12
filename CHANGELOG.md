@@ -10,6 +10,38 @@ In this section, I'll be writing the series of updates and changes of the projec
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
 
+### [0.2.1]
+
+Update 0.2.1
+
+Command system that moves controllable characters
+
+### [0.2.0]
+
+Update 0.2.0
+
+Game Architecture and Entity Component System
+
+Before diving deeper into the game I wanted to establish an architectural pattern to follow for the rest of development.
+I knew that without it, the code would grow wild and unwieldy, especially to make changes. This could prove fatal for
+the game since I could see myself quickly getting frustrated with a project that becomes harder and harder to work with.
+
+The form of architecture I settled on was Entity Component System (ECS), as it offered flexibility for the types of
+objects I could create as well as enabling good performance through data being stored in contiguous, dense arrays.
+
+Flexible and performant code was too alluring of a prospect which is why I went for it. 
+
+The implementation of ECS in this project is copied straight from Austin Morlan's 
+[A Simple Entity Component System (ECS) (C++)](https://austinmorlan.com/posts/entity_component_system/)
+
+Another great resource for learning has been Dave Churchill's
+[COMP4300 Game Programming](https://www.youtube.com/watch?v=p6JKosBmB0I&list=PLdEgIOpXtE-s)
+
+To complement the new architecture, I have reshuffled the source files a little into two main directories: engine and
+game. Always good to keep things organised.
+
+Functionally, nothing is different to the previous update but it should set me up for success later down the line.
+
 ### [0.1.3]
 
 Update 0.1.3

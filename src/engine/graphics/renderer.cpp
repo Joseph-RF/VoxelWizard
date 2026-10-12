@@ -1,5 +1,9 @@
 #include "renderer.hpp"
 
+#include <glad/glad.h>
+
+#include <iostream>
+
 Renderer::Renderer(int window_width, int window_height)
     : window_width(window_width)
     , window_height(window_height) {
@@ -39,8 +43,9 @@ Renderer::~Renderer() {
     glDeleteFramebuffers(1, &intermediate_fbo);
 }
 
-void Renderer::init() {
-    initShaders();
+void Renderer::init(std::shared_ptr<ResourceManager> resource_manager) {
+    m_resource_manager = resource_manager;
+
     initUBOs();
     initFramebuffers();
     initScreenQuad();
@@ -62,17 +67,10 @@ void Renderer::render(const RenderContext& render_context) {
     renderScene(render_context);
 
     // Render the player
-    renderPlayer(render_context);
+    renderActors();
 
     // Render to screen
     renderScreen();
-}
-
-void Renderer::initShaders() {
-    shader_lib.create("chunks", SHADERS_PATH "chunk_vshader.glsl", SHADERS_PATH "chunk_fshader.glsl", "");
-    shader_lib.create("player", SHADERS_PATH "player_vshader.glsl", SHADERS_PATH "player_fshader.glsl", "");
-    shader_lib.create("screen", SHADERS_PATH "screen_vshader.glsl",
-                      SHADERS_PATH "screen_fshader.glsl", "");
 }
 
 void Renderer::initUBOs() {
@@ -96,8 +94,8 @@ void Renderer::initUBOs() {
          {0.1, 0.1, 0.8, 1.0},
     };
 
-    unsigned int chunks_shader_id = shader_lib.get("chunks").ID;
-    unsigned int player_shader_id = shader_lib.get("player").ID;
+    unsigned int chunks_shader_id = m_resource_manager->getShader("chunks").ID;
+    unsigned int player_shader_id = m_resource_manager->getShader("player").ID;
 
     unsigned int matrices_index_chunks = glGetUniformBlockIndex(chunks_shader_id, "Matrices");
     unsigned int block_data_index_chunks = glGetUniformBlockIndex(chunks_shader_id, "BlockData");
@@ -204,6 +202,10 @@ void Renderer::initScreenQuad() {
     glBindVertexArray(0);
 }
 
+void Renderer::setSystems(std::shared_ptr<ActorRenderSystem> ars) {
+    m_actor_render_system = ars;
+}
+
 void Renderer::processScreenResize(int new_window_width, int new_window_height) {
     window_width  = new_window_width;
     window_height = new_window_height;
@@ -234,8 +236,8 @@ void Renderer::renderPrep(Camera& camera) {
 
 void Renderer::setUniforms(const RenderContext& render_context) {
     // Set uniforms that are consistent between vertices
-    Shader& chunk_shader = shader_lib.get("chunks");
-    Shader& player_shader = shader_lib.get("player");
+    Shader& chunk_shader = m_resource_manager->getShader("chunks");
+    Shader& player_shader = m_resource_manager->getShader("player");
     // View and projection matrices won't change between objects
     glm::mat4 view = render_context.camera.lookAt();
     glm::mat4 projection = glm::perspective(
@@ -259,7 +261,7 @@ void Renderer::setUniforms(const RenderContext& render_context) {
 
     // Vertex shader uniforms
     chunk_shader.use();
-    chunk_shader.setFloat("side_length", Block::side_length);
+    chunk_shader.setFloat("side_length", Voxel::BLOCK_LENGTH);
 
     // Fragment shader uniforms for chunk shader
     chunk_shader.setVec3("viewer_pos", render_context.camera.pos);
@@ -283,29 +285,25 @@ void Renderer::setUniforms(const RenderContext& render_context) {
 
 void Renderer::renderScene(const RenderContext& render_context) {
 
-    Shader& chunk_shader = shader_lib.get("chunks");
+    Shader& chunk_shader = m_resource_manager->getShader("chunks");
 
     glBindFramebuffer(GL_FRAMEBUFFER, multisample_fbo);
 
     if (!fill_polygons) { glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); }
     // Call object draw functions
-    for (Column& column : render_context.columns) {
+    std::vector<Column>& columns = render_context.world.getColumns();
+    for (Column& column : columns) {
         column.draw(chunk_shader);
     }
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void Renderer::renderPlayer(const RenderContext& render_context) {
+void Renderer::renderActors() {
 
-    // Check if the player mesh exists
-    Mesh* mesh = render_context.resource_manager.tryGetMesh(render_context.player.mesh_id);
-    
-    if (mesh == nullptr) {
-        std::cout << "No mesh found for the player" << std::endl;
-        return;
-    }
-
-    render_context.player.draw(*mesh, shader_lib.get("player"));
+    // TODO:
+    // Use the actor render system to render actors
+    // Probably just a simple actor render system call
+    m_actor_render_system->render();
 }
 
 void Renderer::renderScreen() {
@@ -319,8 +317,8 @@ void Renderer::renderScreen() {
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindVertexArray(screen_vao);
-    shader_lib.get("screen").use();
-    shader_lib.get("screen").setInt("screenTexture", 0);
+    m_resource_manager->getShader("screen").use();
+    m_resource_manager->getShader("screen").setInt("screenTexture", 0);
     glBindTexture(GL_TEXTURE_2D, screen_texture);
     glDisable(GL_DEPTH_TEST);
     glDrawArrays(GL_TRIANGLES, 0, 6);

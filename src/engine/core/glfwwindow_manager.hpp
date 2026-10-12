@@ -1,5 +1,8 @@
 #pragma once
 
+#include "iwindow_manager.hpp"
+#include "imgui_utility.hpp"
+
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 
@@ -9,8 +12,6 @@
 
 #include <iostream>
 
-#include <imgui_utility.hpp>
-#include <iwindowmanager.hpp>
 
 class GLFWWindowManager : public IWindowManager {
 public:

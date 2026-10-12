@@ -2,14 +2,12 @@
 #include <vector>
 #include <map>
 #include <memory>
-#include <array>
-#include <string>
 
 #include <glm/glm.hpp>
 #include "../third_party/fastnoiselite/FastNoiseLite.h"
 
-#include "shader.hpp"
-#include "mesh.hpp"
+#include "engine/graphics/shader.hpp"
+#include "engine/graphics/mesh.hpp"
 
 enum class BlockType {
     Grass,
@@ -41,8 +39,6 @@ public:
 
     BlockType getBlockType();
     void setBlockType(BlockType block_type);
-
-    static constexpr float side_length = 1.0f;
 
     static std::map<BlockType, glm::vec3> block_type_colours;
     static std::map<BlockType, int8_t> block_type_to_int8;
@@ -136,9 +132,6 @@ public:
     void padOccupancy(const Chunk& source, const ChunkNeighbour neighbour_position);
     
     void destroyMesh();
-
-    static constexpr int CHUNK_SIZE = 16;
-    static constexpr int CHUNK_SIZE_SQ = CHUNK_SIZE * CHUNK_SIZE;
 
     std::vector<int8_t> blocks;
     std::vector<int32_t> block_occupancy_x;

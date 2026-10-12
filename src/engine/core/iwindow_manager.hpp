@@ -1,8 +1,8 @@
 #pragma once
 
-#include <memory>
+#include "engine/input/events.hpp"
 
-#include <events.hpp>
+#include <memory>
 
 class IWindowManager {
 public:

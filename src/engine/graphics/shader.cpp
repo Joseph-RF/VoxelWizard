@@ -1,5 +1,12 @@
 #include "shader.hpp"
 
+#include <glad/glad.h> // include glad to get all the required OpenGL headers
+#include <glm/gtc/type_ptr.hpp>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
 Shader::Shader() {
     ID = 0;
 }
@@ -147,24 +154,4 @@ void Shader::setVec3(const std::string& name, const glm::vec3& vec) const {
 
 void Shader::setUniformBlockBinding(const std::string& name, unsigned int binding) {
     glUniformBlockBinding(ID, glGetUniformBlockIndex(ID, name.c_str()), binding);
-}
-
-void ShaderLibrary::create(const std::string& name, const char* vertex_path,
-                           const char* fragment_path, const char* geometry_path) {
-    if (exists(name)) {
-        std::cout << "Shader with this name already exists" << std::endl;
-        return;
-    }
-    shaders[name] = Shader(vertex_path, fragment_path, geometry_path);
-}
-
-Shader& ShaderLibrary::get(const std::string& name) {
-    if (!exists(name)) {
-        std::cout << "Shader not found" << std::endl;
-    }
-    return shaders[name];
-}
-
-bool ShaderLibrary::exists(const std::string& name) const {
-    return shaders.find(name) != shaders.end();
 }

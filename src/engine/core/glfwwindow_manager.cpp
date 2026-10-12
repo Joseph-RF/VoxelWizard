@@ -1,4 +1,4 @@
-#include <glfwwindowmanager.hpp>
+#include "glfwwindow_manager.hpp"
 
 GLFWWindowManager::GLFWWindowManager(int window_width, int window_height,
                                      std::shared_ptr<EventManager> event_manager)

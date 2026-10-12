@@ -1,28 +1,56 @@
+#include "resource_manager.hpp"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
 
-#include <resourcemanager.hpp>
+ResourceManager::ResourceManager() {
+    for(int i = 0; i < MAX_MESHES; ++i) {
+        available_mesh_ids.push(i);
+    }
+    for(int i = 0; i < MAX_SHADERS; ++i) {
+        available_shader_ids.push(i);
+    }
+}
 
-void ResourceManager::createMesh(const std::string& name, const std::vector<VertexData>& vertices) {
+void ResourceManager::createMesh(const std::string &name, const std::vector<VertexData> &vertices)
+{
+    if(available_mesh_ids.empty()) {
+        std::cout << "At max capacity for meshes" << std::endl;
+        return;
+    }
     if (doesMeshExist(name)) {
         std::cout << "Mesh with this name already exists" << std::endl;
         return;
     }
     meshes.insert({ name, std::make_unique<Mesh>(vertices) });
+    mesh_name_to_id.insert({name, available_mesh_ids.front()});
+    mesh_id_to_name.insert({available_mesh_ids.front(), name});
+    available_mesh_ids.pop();
 }
 
 void ResourceManager::createMesh(const std::string& name, const std::vector<VertexData>& vertices,
 							     const std::vector<unsigned int>& indices) {
+    if(available_mesh_ids.empty()) {
+        std::cout << "At max capacity for meshes" << std::endl;
+        return;
+    }
     if (doesMeshExist(name)) {
         std::cout << "Mesh with this name already exists" << std::endl;
         return;
     }
     meshes.insert({name, std::make_unique<Mesh>(vertices, indices)});
+    mesh_name_to_id.insert({name, available_mesh_ids.front()});
+    mesh_id_to_name.insert({available_mesh_ids.front(), name});
+    available_mesh_ids.pop();
 }
 
 void ResourceManager::createMeshFromObj(const std::string& name, const std::string& file_path) {
+    if(available_mesh_ids.empty()) {
+        std::cout << "At max capacity for meshes" << std::endl;
+        return;
+    }
     if (doesMeshExist(name)) {
         std::cout << "Mesh with this name already exists. Could not load mesh from obj file." << std::endl;
         return;
@@ -135,6 +163,9 @@ void ResourceManager::createMeshFromObj(const std::string& name, const std::stri
     }
 
     meshes.insert({ name, std::make_unique<Mesh>(vertices, indices) });
+    mesh_name_to_id.insert({name, available_mesh_ids.front()});
+    mesh_id_to_name.insert({available_mesh_ids.front(), name});
+    available_mesh_ids.pop();
 }
 
 Mesh* ResourceManager::tryGetMesh(const std::string& name) {
@@ -143,12 +174,98 @@ Mesh* ResourceManager::tryGetMesh(const std::string& name) {
     // Usage should be: Use and discard ALWAYS
 
     if (!doesMeshExist(name)) {
-        std::cout << "Mesh not found" << std::endl;
+        std::cout << "Mesh not found (with name)" << std::endl;
         return nullptr;
     }
     return meshes.at(name).get();
 }
 
+Mesh *ResourceManager::tryGetMesh(uint32_t id) {
+
+    // Ensure this pointer is never saved by ANYTHING
+    // Usage should be: Use and discard ALWAYS
+
+    if(!doesMeshExist(id)) {
+        std::cout << "Mesh not found (with id)" << std::endl;
+        return nullptr;
+    }
+    return meshes.at(mesh_id_to_name.at(id)).get();
+}
+
+void ResourceManager::createShader(const std::string &name, const char *vertex_path, 
+                                   const char *fragment_path, const char *geometry_path) {
+    if(available_shader_ids.empty()) {
+        std::cout << "At max capacity for shaders" << std::endl;
+        return;
+    }
+    if (doesShaderExist(name)) {
+        std::cout << "Shader with this name already exists" << std::endl;
+        return;
+    }
+    shaders.insert({name, Shader(vertex_path, fragment_path, geometry_path) });
+    shader_name_to_id.insert({name, available_shader_ids.front()});
+    shader_id_to_name.insert({available_shader_ids.front(), name});
+    available_shader_ids.pop();
+}
+
+Shader &ResourceManager::getShader(const std::string &name) {
+    if (!doesShaderExist(name)) {
+        std::cout << "Shader not found (with name)" << std::endl;
+    }
+    return shaders.at(name);
+}
+
+Shader &ResourceManager::getShader(uint32_t id) {
+    if (!doesShaderExist(id)) {
+        std::cout << "Shader not found (with id)" << std::endl;
+    }
+    return shaders.at(shader_id_to_name.at(id));
+}
+
+std::string ResourceManager::getMeshName(uint32_t id) {
+    if (!doesMeshExist(id)) {
+        std::cout << "Mesh not found (with id)" << std::endl;
+        return std::string();
+    }
+    return mesh_id_to_name[id];
+}
+
+uint32_t ResourceManager::getMeshID(const std::string &name) {
+    if (!doesMeshExist(name)) {
+        std::cout << "Mesh not found (with name)" << std::endl;
+        return 0;
+    }
+    return mesh_name_to_id[name];
+}
+
+std::string ResourceManager::getShaderName(uint32_t id) {
+    if (!doesShaderExist(id)) {
+        std::cout << "Shader not found (with id)" << std::endl;
+        return std::string();
+    }
+    return shader_id_to_name[id];
+}
+
+uint32_t ResourceManager::getShaderID(const std::string &name) {
+    if (!doesShaderExist(name)) {
+        std::cout << "Shader not found (with name)" << std::endl;
+        return 0;
+    }
+    return shader_name_to_id[name];
+}
+
 bool ResourceManager::doesMeshExist(const std::string& name) const {
     return meshes.find(name) != meshes.end();
+}
+
+bool ResourceManager::doesMeshExist(const uint32_t id) const {
+    return mesh_id_to_name.find(id) != mesh_id_to_name.end();
+}
+
+bool ResourceManager::doesShaderExist(const std::string &name) const {
+    return shaders.find(name) != shaders.end();
+}
+
+bool ResourceManager::doesShaderExist(const uint32_t id) const {
+    return shader_id_to_name.find(id) != shader_id_to_name.end();
 }

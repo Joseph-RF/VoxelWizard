@@ -1,4 +1,4 @@
-#include <events.hpp>
+#include "events.hpp"
 
 Event::Event(Action action, float mouse_xpos, float mouse_ypos, float scroll_x, float scroll_y)
     : action(action)

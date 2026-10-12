@@ -2,9 +2,10 @@
 
 #include "camera.hpp"
 #include "shader.hpp"
-#include "game_objects.hpp"
-#include "resourcemanager.hpp"
-#include "player.hpp"
+#include "game/world/world_objects.hpp"
+#include "engine/core/resource_manager.hpp"
+#include "game/world/world.hpp"
+#include "game/actor_render_system.hpp"
 
 #include <memory>
 #include <vector>
@@ -22,9 +23,7 @@ struct DirLight {
 struct RenderContext {
     // Throw objects to be rendered in here
     Camera& camera;
-    ResourceManager& resource_manager;
-    std::vector<Column>& columns;
-    Player& player;
+    World& world;
 };
 
 class Renderer {
@@ -32,7 +31,9 @@ public:
     Renderer(int window_width, int window_height);
     ~Renderer();
 
-    void init();
+    void init(std::shared_ptr<ResourceManager> resource_manager);
+
+    void setSystems(std::shared_ptr<ActorRenderSystem> ars);
 
     void render(const RenderContext& render_context);
 
@@ -49,7 +50,6 @@ public:
     float zoom;
 
 private:
-    void initShaders();
     void initUBOs();
     void initFramebuffers();
     void initScreenQuad();
@@ -57,7 +57,7 @@ private:
     void renderPrep(Camera& camera);
     void setUniforms(const RenderContext& render_context);
     void renderScene(const RenderContext& render_context);
-    void renderPlayer(const RenderContext& render_context);
+    void renderActors();
     void renderScreen();
 
     // Window properties
@@ -67,8 +67,11 @@ private:
     // Projection properties
     float far_plane;
 
-    // Shaders
-    ShaderLibrary shader_lib;
+    // Resource Manager
+    std::shared_ptr<ResourceManager> m_resource_manager;
+
+    // Actor render system
+    std::shared_ptr<ActorRenderSystem> m_actor_render_system;
 
     // Subsamples
     unsigned int subsamples;

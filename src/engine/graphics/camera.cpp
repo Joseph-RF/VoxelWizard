@@ -1,4 +1,4 @@
-#include <camera.hpp>
+#include "camera.hpp"
 
 Camera::Camera(const int& WORLD_SIZE, const int& CHUNK_SIZE, const float& block_side_lenth) {
 	orbit_radius = WORLD_SIZE * CHUNK_SIZE * block_side_lenth;

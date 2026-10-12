@@ -1,6 +1,6 @@
-#include <glad/glad.h>
+#include "mesh.hpp"
 
-#include <mesh.hpp>
+#include <glad/glad.h>
 
 Mesh::Mesh(const std::vector<VertexData>& vertices) {
 

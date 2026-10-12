@@ -1,9 +1,15 @@
 #include "app.hpp"
 
+#include "../engine/ecs/coordinator.hpp"
+#include "components.hpp"
+#include "actor_render_system.hpp"
+
 #include <chrono>
 
+Coordinator g_coordinator;
+
 App::App(int window_x, int window_y)
-    : renderer(window_x, window_y), camera(WORLD_SIZE, Chunk::CHUNK_SIZE, Block::side_length) {
+    : renderer(window_x, window_y), camera(Voxel::WORLD_SIZE, Voxel::CHUNK_SIZE, Voxel::BLOCK_LENGTH) {
     // Window properties
     this->window_x = window_x;
     this->window_y = window_y;
@@ -19,6 +25,9 @@ App::App(int window_x, int window_y)
     last_mouse_xpos      = window_x / 2.f;
     last_mouse_ypos      = window_y / 2.f;
     mouse_pressed        = false;
+
+    // Resource manager
+    resource_manager = std::make_shared<ResourceManager>();
 }
 
 App::~App() {}
@@ -46,39 +55,75 @@ bool App::init() {
         return false;
     }
 
-    renderer.init();
+    initResources();
 
-    initModels();
-    initScene();
+    renderer.init(resource_manager);
+
+    initCoordinator();
+    initSystems();
+    initWorld();
+    initEntities();
 
     return true;
 }
 
-void App::initModels() {
-    resource_manager.createMeshFromObj("player", MODELS_PATH "wizardplaceholder.obj");
-    player.setMeshID("player");
+void App::initCoordinator() {
+    g_coordinator.init();
+    // Register the components
+    g_coordinator.registerComponent<Transform>();
+    g_coordinator.registerComponent<Renderable>();
 }
 
-void App::initScene() {
-    // Set noise generator parameters
-    Column::configureNoiseGenerator();
+void App::initSystems() {
+    std::shared_ptr<ActorRenderSystem> actor_render_system = g_coordinator.registerSystem<ActorRenderSystem>();
+    {
+        Signature signature;
+        signature.set(g_coordinator.getComponentType<Transform>());
+        signature.set(g_coordinator.getComponentType<Renderable>());
+        g_coordinator.setSystemSignature<ActorRenderSystem>(signature);
+    }
+    actor_render_system->init(resource_manager);
+    renderer.setSystems(actor_render_system);
 
-    for (int i = -HALF_WORLD_SIZE; i < HALF_WORLD_SIZE; ++i) {
-        for (int k = -HALF_WORLD_SIZE; k < HALF_WORLD_SIZE; ++k) {
-            columns.emplace_back(ColumnPos(i, k));
+    // Set the rest of the systems
+}
+
+void App::initResources()
+{
+    // Shaders
+    // ------------------------------------------
+    resource_manager->createShader("chunks", SHADERS_PATH "chunk_vshader.glsl", SHADERS_PATH "chunk_fshader.glsl", "");
+    resource_manager->createShader("player", SHADERS_PATH "player_vshader.glsl", SHADERS_PATH "player_fshader.glsl", "");
+    resource_manager->createShader("screen", SHADERS_PATH "screen_vshader.glsl",
+                      SHADERS_PATH "screen_fshader.glsl", "");
+
+    // Meshes
+    // ------------------------------------------
+    resource_manager->createMeshFromObj("player", MODELS_PATH "wizardplaceholder.obj");
+}
+
+void App::initWorld() {
+    world.init();
+}
+
+void App::initEntities() {
+    Entity entity;
+    entity = g_coordinator.createEntity();
+
+    g_coordinator.addComponent<Transform>(entity, 
+        Transform{
+            {0.0f, 10.f, 0.0f},
+            {0.0f, 0.0f, 0.0f},
+            {1.0f, 1.0f, 1.0f}
         }
-    }
+    );
 
-    // Update column occupancy data now that they've all been created
-    for (Column& column : columns) {
-        updateColumnEdgeOccupancy(column);
-    }
-
-    // Now that chunk data is ready, generate vertices and meshes
-    for (Column& column : columns) {
-        column.generateVertices();
-        column.generateMeshes();
-    }
+    g_coordinator.addComponent<Renderable>(entity,
+        Renderable{
+            resource_manager->getMeshID("player"),
+            resource_manager->getShaderID("player")
+        }
+    );
 }
 
 void App::update() {
@@ -86,48 +131,14 @@ void App::update() {
     delta_time          = current_frame - last_frame;
     last_frame          = current_frame;
 
-    runActions();
+    processEvents();
 
     window_manager->update();
 
     event_manager->update();
 }
 
-void App::updateColumnEdgeOccupancy(Column& column) {
-
-    static const std::array<std::pair<ChunkNeighbour, ChunkPos>, 4> column_neighbour_positions{ {
-        {ChunkNeighbour::LEFT, ChunkPos{-1, 0, 0}},
-        {ChunkNeighbour::RIGHT, ChunkPos{1, 0, 0}},
-        {ChunkNeighbour::BEHIND, ChunkPos{0, 0, -1}},
-        {ChunkNeighbour::IN_FRONT, ChunkPos{0, 0, 1}},
-    } };
-
-    // Iterate through each individual chunk in a chunk stack for every neighbour direction
-    for (const auto& pair : column_neighbour_positions) {
-        ColumnPos neighbour_column_pos{
-                column.column_pos.x + pair.second.x,
-                column.column_pos.z + pair.second.z
-        };
-
-        // Check the neighbour is in bounds a.k.a exists
-        if (!inBounds(neighbour_column_pos)) { continue; }
-
-        for (Chunk& chunk : column.chunks) {
-            chunk.padOccupancy(columns[getColumnIndex(neighbour_column_pos)][chunk.chunk_pos.y], pair.first);
-        }
-    }
-
-    // Go through the chunks in the chunk stack from the bottom up except for last chunk (nothing above it)
-    for (int i = 0; i < Column::COLUMN_HEIGHT - 1; ++i) {
-        column.chunks[i].padOccupancy(column.chunks[i + 1], ChunkNeighbour::ABOVE);
-    }
-    // Go through the chunks in the chunk stack from the top down except for the last chunk (nothing below it)
-    for (int i = Column::COLUMN_HEIGHT - 1; i > 0; --i) {
-        column.chunks[i].padOccupancy(column.chunks[i - 1], ChunkNeighbour::BELOW);
-    }
-}
-
-void App::runActions() {
+void App::processEvents() {
     for (; !event_manager->events.empty(); event_manager->events.pop()) {
         // Consider using a switch statement for the below
         switch (event_manager->events.front().action) {
@@ -206,7 +217,7 @@ void App::render() {
     window_manager->newImGuiFrame();
 
     // Render scene
-    renderer.render(RenderContext{camera, resource_manager, columns, player});
+    renderer.render(RenderContext{camera, world});
 
     // After drawing OpenGL objects, draw ImGUI
     renderImGUI();
@@ -291,61 +302,17 @@ void App::processScreenResize(float new_window_x, float new_window_y) {
     renderer.processScreenResize(window_x, window_y);
 }
 
-ChunkPos App::getChunkPos(int x_pos, int y_pos, int z_pos) {
-    ChunkPos return_chunk_pos;
-
-    return_chunk_pos.x = (x_pos - (x_pos < 0 ? Chunk::CHUNK_SIZE - 1 : 0)) / Chunk::CHUNK_SIZE;
-    return_chunk_pos.y = (y_pos - (y_pos < 0 ? Chunk::CHUNK_SIZE - 1 : 0)) / Chunk::CHUNK_SIZE;
-    return_chunk_pos.z = (z_pos - (z_pos < 0 ? Chunk::CHUNK_SIZE - 1 : 0)) / Chunk::CHUNK_SIZE;
-
-    return return_chunk_pos;
-}
-
-ChunkPos App::getChunkPos(glm::vec3 pos) {
-    ChunkPos return_chunk_pos(
-        std::floor(pos.x / (Chunk::CHUNK_SIZE * Block::side_length)),
-        std::floor(pos.y / (Chunk::CHUNK_SIZE * Block::side_length)),
-        std::floor(pos.z / (Chunk::CHUNK_SIZE * Block::side_length)));
-
-    return return_chunk_pos;
-}
-
-inline int App::getColumnIndex(ColumnPos column_pos) {
-
-    int x = column_pos.x + HALF_WORLD_SIZE;
-    int z = column_pos.z + HALF_WORLD_SIZE;
-
-    int index = (column_pos.z + HALF_WORLD_SIZE) + WORLD_SIZE * (column_pos.x + HALF_WORLD_SIZE);
-
-    if (index > WORLD_SIZE_SQ - 1 || index < 0) {
-        std::cout << "Column Index is out of bounds" << std::endl;
-        return 0;
-    }
-
-    return index;
-}
-
-inline bool App::inBounds(ColumnPos column_pos) {
-    if (column_pos.x > HALF_WORLD_SIZE - 1 || column_pos.x < -HALF_WORLD_SIZE) {
-        return false;
-    }
-    if (column_pos.z > HALF_WORLD_SIZE - 1 || column_pos.z < -HALF_WORLD_SIZE) {
-        return false;
-    }
-    return true;
-}
-
 void App::initSceneTEST() {
     constexpr int iterations = 1;
 
     std::array<std::chrono::milliseconds, iterations> totals;
 
     for (unsigned int i = 0; i < iterations; ++i) {
-        std::vector<Column>().swap(columns);
+        world = World();
 
         auto start = std::chrono::high_resolution_clock::now();
 
-        initScene();
+        initWorld();
 
         // Record ending time
         auto stop = std::chrono::high_resolution_clock::now();

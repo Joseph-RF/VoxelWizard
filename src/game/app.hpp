@@ -8,12 +8,15 @@
 #include <utility>
 #include <memory>
 
-#include "camera.hpp"
-#include "glfwwindowmanager.hpp"
-#include "renderer.hpp"
-#include "game_objects.hpp"
-#include "resourcemanager.hpp"
-#include "player.hpp"
+#include "engine/graphics/camera.hpp"
+#include "engine/graphics/renderer.hpp"
+#include "engine/core/glfwwindow_manager.hpp"
+#include "engine/core/resource_manager.hpp"
+
+#include "game/world/world_objects.hpp"
+#include "game/world/world.hpp"
+
+#include "engine/core/types.hpp"
 
 class App {
 public:
@@ -47,18 +50,13 @@ private:
     Renderer renderer;
 
     // Resource Manager
-    ResourceManager resource_manager;
+    std::shared_ptr<ResourceManager> resource_manager;
 
     // Game data
-    static constexpr int WORLD_SIZE = 32;
-    static constexpr int HALF_WORLD_SIZE = 16;
-    static constexpr int WORLD_SIZE_SQ = WORLD_SIZE * WORLD_SIZE;
-    glm::vec2 world_centre_pos{ WORLD_SIZE * Chunk::CHUNK_SIZE * Block::side_length / 2.f,
-                                WORLD_SIZE * Chunk::CHUNK_SIZE * Block::side_length / 2.f };
-    std::vector<Column> columns;
+    World world;
+    glm::vec2 world_centre_pos{ Voxel::WORLD_SIZE * Voxel::CHUNK_SIZE * Voxel::BLOCK_LENGTH / 2.f,
+                                Voxel::WORLD_SIZE * Voxel::CHUNK_SIZE * Voxel::BLOCK_LENGTH / 2.f };
     ColumnPos current_column_pos{ 10, 10 };
-
-    Player player;
 
     // ----- Concurrency -----
 
@@ -68,14 +66,16 @@ private:
     // Initialising functions
     bool init();
 
-    void initModels();
-    void initScene();
+    void initCoordinator();
+    void initSystems();
+    void initResources();
+    void initWorld();
+    void initEntities();
 
     // Updating functions
     void update();
-    void updateColumnEdgeOccupancy(Column& column);
 
-    void runActions();
+    void processEvents();
 
     // Rendering functions
     void render();
@@ -86,12 +86,6 @@ private:
     void processMouseMovement(float mouse_xpos, float mouse_ypos);
 
     void processScreenResize(float new_window_x, float new_window_y);
-
-    // Game data functions
-    ChunkPos getChunkPos(int x_pos, int y_pos, int z_pos);
-    ChunkPos getChunkPos(glm::vec3 pos);
-    inline int getColumnIndex(ColumnPos column_pos);
-    inline bool inBounds(ColumnPos column_pos);
 
     // Test code
     void initSceneTEST();
