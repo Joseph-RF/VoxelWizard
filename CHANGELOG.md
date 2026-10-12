@@ -4,17 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-09-13
+## [Released] - 2026-10-12
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
-
-### [0.2.1]
-
-Update 0.2.1
-
-Command system that moves controllable characters
 
 ### [0.2.0]
 
@@ -158,14 +152,14 @@ Main changes with regards to the Infinite Voxel Terrain project:
 function call) by simply adding around 10 lines of code.
 - Removed code that won't be needed in this project that comes from Infinite Voxel Terrain
 
-## [Unreleased] - 2026-09-13
+## [Unreleased] - 2026-10-12
 
 Here will write a vague roadmap of the upcoming updates and changes to the project.
 Not supposed to be very rigid and features will move from one planned update to the next.
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
 
-### [0.1.4]
+### [0.2.1]
 
 Commands and moving The Wizard around. Will feature displacement and rotations as well as a Camera Deadzone!
 Wow!
