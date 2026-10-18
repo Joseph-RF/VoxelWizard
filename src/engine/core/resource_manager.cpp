@@ -14,8 +14,7 @@ ResourceManager::ResourceManager() {
     }
 }
 
-void ResourceManager::createMesh(const std::string &name, const std::vector<VertexData> &vertices)
-{
+void ResourceManager::createMesh(const std::string &name, const std::vector<VertexData> &vertices) {
     if(available_mesh_ids.empty()) {
         std::cout << "At max capacity for meshes" << std::endl;
         return;
@@ -180,7 +179,7 @@ Mesh* ResourceManager::tryGetMesh(const std::string& name) {
     return meshes.at(name).get();
 }
 
-Mesh *ResourceManager::tryGetMesh(uint32_t id) {
+Mesh *ResourceManager::tryGetMesh(uint16_t id) {
 
     // Ensure this pointer is never saved by ANYTHING
     // Usage should be: Use and discard ALWAYS
@@ -215,14 +214,14 @@ Shader &ResourceManager::getShader(const std::string &name) {
     return shaders.at(name);
 }
 
-Shader &ResourceManager::getShader(uint32_t id) {
+Shader &ResourceManager::getShader(uint16_t id) {
     if (!doesShaderExist(id)) {
         std::cout << "Shader not found (with id)" << std::endl;
     }
     return shaders.at(shader_id_to_name.at(id));
 }
 
-std::string ResourceManager::getMeshName(uint32_t id) {
+std::string ResourceManager::getMeshName(uint16_t id) {
     if (!doesMeshExist(id)) {
         std::cout << "Mesh not found (with id)" << std::endl;
         return std::string();
@@ -230,7 +229,7 @@ std::string ResourceManager::getMeshName(uint32_t id) {
     return mesh_id_to_name[id];
 }
 
-uint32_t ResourceManager::getMeshID(const std::string &name) {
+uint16_t ResourceManager::getMeshID(const std::string &name) {
     if (!doesMeshExist(name)) {
         std::cout << "Mesh not found (with name)" << std::endl;
         return 0;
@@ -238,7 +237,7 @@ uint32_t ResourceManager::getMeshID(const std::string &name) {
     return mesh_name_to_id[name];
 }
 
-std::string ResourceManager::getShaderName(uint32_t id) {
+std::string ResourceManager::getShaderName(uint16_t id) {
     if (!doesShaderExist(id)) {
         std::cout << "Shader not found (with id)" << std::endl;
         return std::string();
@@ -246,7 +245,7 @@ std::string ResourceManager::getShaderName(uint32_t id) {
     return shader_id_to_name[id];
 }
 
-uint32_t ResourceManager::getShaderID(const std::string &name) {
+uint16_t ResourceManager::getShaderID(const std::string &name) {
     if (!doesShaderExist(name)) {
         std::cout << "Shader not found (with name)" << std::endl;
         return 0;
@@ -258,7 +257,7 @@ bool ResourceManager::doesMeshExist(const std::string& name) const {
     return meshes.find(name) != meshes.end();
 }
 
-bool ResourceManager::doesMeshExist(const uint32_t id) const {
+bool ResourceManager::doesMeshExist(const uint16_t id) const {
     return mesh_id_to_name.find(id) != mesh_id_to_name.end();
 }
 
@@ -266,6 +265,6 @@ bool ResourceManager::doesShaderExist(const std::string &name) const {
     return shaders.find(name) != shaders.end();
 }
 
-bool ResourceManager::doesShaderExist(const uint32_t id) const {
+bool ResourceManager::doesShaderExist(const uint16_t id) const {
     return shader_id_to_name.find(id) != shader_id_to_name.end();
 }

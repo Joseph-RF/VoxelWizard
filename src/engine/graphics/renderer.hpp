@@ -45,10 +45,6 @@ public:
     bool fill_polygons;
     DirLight dir_light;
 
-    // Camera parameters
-    bool ortho;
-    float zoom;
-
 private:
     void initUBOs();
     void initFramebuffers();
@@ -63,9 +59,6 @@ private:
     // Window properties
     int window_width;
     int window_height;
-
-    // Projection properties
-    float far_plane;
 
     // Resource Manager
     std::shared_ptr<ResourceManager> m_resource_manager;

@@ -8,8 +8,6 @@ Renderer::Renderer(int window_width, int window_height)
     : window_width(window_width)
     , window_height(window_height) {
     // Initialise other variables
-    far_plane = 10000.f;
-    
     subsamples = 4;
 
     multisample_fbo  = 0;
@@ -32,10 +30,6 @@ Renderer::Renderer(int window_width, int window_height)
     dir_light.ambient = 0.1f;
     dir_light.diffuse = 0.8f;
     dir_light.specular = 1.0f;
-
-    // Camera parameters
-    ortho = true;
-    zoom = 0.38f;
 }
 
 Renderer::~Renderer() {
@@ -239,20 +233,9 @@ void Renderer::setUniforms(const RenderContext& render_context) {
     Shader& chunk_shader = m_resource_manager->getShader("chunks");
     Shader& player_shader = m_resource_manager->getShader("player");
     // View and projection matrices won't change between objects
-    glm::mat4 view = render_context.camera.lookAt();
-    glm::mat4 projection = glm::perspective(
-        glm::radians(render_context.camera.fov),
-        (static_cast<float>(window_width) / static_cast<float>(window_height)), 0.1f, far_plane);
-
-    if (ortho) {
-        projection = glm::ortho(-(float)window_width * zoom / 2.f, 
-                                 (float)window_width * zoom / 2.f, 
-                                -(float)window_height * zoom / 2.f, 
-                                 (float)window_height * zoom / 2.f, 
-                                  0.1f,
-                                  far_plane
-        );
-    }
+    Camera& camera = render_context.camera;
+    glm::mat4 view = camera.view;
+    glm::mat4 projection = camera.projection;
 
     glBindBuffer(GL_UNIFORM_BUFFER, matrices_ubo);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));

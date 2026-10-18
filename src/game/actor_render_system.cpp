@@ -13,8 +13,7 @@ void ActorRenderSystem::init(std::shared_ptr<ResourceManager> resource_manager) 
     m_resource_manager = resource_manager;
 }
 
-void ActorRenderSystem::render()
-{
+void ActorRenderSystem::render() {
     for(auto const& entity : m_entities) {
         auto const& transform = g_coordinator.getComponent<Transform>(entity);
         auto const& renderable = g_coordinator.getComponent<Renderable>(entity);

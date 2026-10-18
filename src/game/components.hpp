@@ -7,6 +7,10 @@ struct Transform {
 };
 
 struct Renderable {
-    uint32_t mesh_id;
-    uint32_t shader_id;
+    uint16_t mesh_id;
+    uint16_t shader_id;
+};
+
+struct Controllable {
+    float movement_speed;
 };

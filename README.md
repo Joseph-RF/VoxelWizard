@@ -56,3 +56,5 @@ pointers on how to improve it
 * [General Youtube Search for optimisations](https://www.youtube.com/results?search_query=voxel+engine+optimisations)
 * [I Optimised My Game Engine Up To 12000 FPS](https://www.youtube.com/watch?v=40JzyaOYJeY)
 * [Perlin Noise: A Procedural Generation Algorithm](https://rtouti.github.io/graphics/perlin-noise-algorithm)
+* [A Simple Entity Component System (ECS) (C++)](https://austinmorlan.com/posts/entity_component_system/)
+* [Game Programming](https://davechurchill.ca/teaching/)

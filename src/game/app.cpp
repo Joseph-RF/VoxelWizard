@@ -9,7 +9,8 @@
 Coordinator g_coordinator;
 
 App::App(int window_x, int window_y)
-    : renderer(window_x, window_y), camera(Voxel::WORLD_SIZE, Voxel::CHUNK_SIZE, Voxel::BLOCK_LENGTH) {
+    : renderer(window_x, window_y), 
+      camera(Voxel::WORLD_SIZE, Voxel::CHUNK_SIZE, Voxel::BLOCK_LENGTH, window_x, window_y) {
     // Window properties
     this->window_x = window_x;
     this->window_y = window_y;
@@ -72,6 +73,7 @@ void App::initCoordinator() {
     // Register the components
     g_coordinator.registerComponent<Transform>();
     g_coordinator.registerComponent<Renderable>();
+    g_coordinator.registerComponent<Controllable>();
 }
 
 void App::initSystems() {
@@ -85,6 +87,14 @@ void App::initSystems() {
     actor_render_system->init(resource_manager);
     renderer.setSystems(actor_render_system);
 
+    actor_control_system = g_coordinator.registerSystem<ActorControlSystem>();
+    {
+        Signature signature;
+        signature.set(g_coordinator.getComponentType<Transform>());
+        signature.set(g_coordinator.getComponentType<Controllable>());
+        g_coordinator.setSystemSignature<ActorControlSystem>(signature);
+    }
+    actor_control_system->init();
     // Set the rest of the systems
 }
 
@@ -107,10 +117,11 @@ void App::initWorld() {
 }
 
 void App::initEntities() {
-    Entity entity;
-    entity = g_coordinator.createEntity();
 
-    g_coordinator.addComponent<Transform>(entity, 
+    Entity player;
+    player = g_coordinator.createEntity();
+
+    g_coordinator.addComponent<Transform>(player, 
         Transform{
             {0.0f, 10.f, 0.0f},
             {0.0f, 0.0f, 0.0f},
@@ -118,12 +129,17 @@ void App::initEntities() {
         }
     );
 
-    g_coordinator.addComponent<Renderable>(entity,
+    g_coordinator.addComponent<Renderable>(player,
         Renderable{
             resource_manager->getMeshID("player"),
             resource_manager->getShaderID("player")
         }
     );
+
+    g_coordinator.addComponent<Controllable>(player, Controllable{250.0f});
+
+    // Set the camera's target
+    camera.setTargetEntity(player);
 }
 
 void App::update() {
@@ -132,6 +148,12 @@ void App::update() {
     last_frame          = current_frame;
 
     processEvents();
+
+    actor_control_system->update(delta_time, camera.front - camera.pos, camera.world_space_up);
+
+    // Run the physics here
+
+    camera.update();
 
     window_manager->update();
 
@@ -147,16 +169,20 @@ void App::processEvents() {
                                 event_manager->events.front().mouse_ypos);
             break;
         case Action::MOVE_FORWARD:
-            camera.processKeyboard(FORWARD, delta_time);
+            //camera.processKeyboard(FORWARD, delta_time);
+            actor_control_system->push_action(Action::MOVE_FORWARD);
             break;
         case Action::MOVE_LEFT:
-            camera.processKeyboard(LEFT, delta_time);
+            //camera.processKeyboard(LEFT, delta_time);
+            actor_control_system->push_action(Action::MOVE_LEFT);
             break;
         case Action::MOVE_BACKWARD:
-            camera.processKeyboard(BACKWARD, delta_time);
+            //camera.processKeyboard(BACKWARD, delta_time);
+            actor_control_system->push_action(Action::MOVE_BACKWARD);
             break;
         case Action::MOVE_RIGHT:
-            camera.processKeyboard(RIGHT, delta_time);
+            //camera.processKeyboard(RIGHT, delta_time);
+            actor_control_system->push_action(Action::MOVE_RIGHT);
             break;
         case Action::MOVE_UP:
             //camera.processKeyboard(UP, delta_time);
@@ -279,10 +305,10 @@ void App::renderImGUI() {
         ImGui::Checkbox("Fill Polygons", &renderer.fill_polygons);
 
         ImGui::Text("Toggle Camera Projection");
-        ImGui::Checkbox("Perspective or Orthographic", &renderer.ortho);
+        ImGui::Checkbox("Perspective or Orthographic", &camera.ortho);
 
         ImGui::SetNextItemWidth(120.f);
-        ImGui::SliderFloat("Zoom", &renderer.zoom, 0.01f, 1.f);
+        ImGui::SliderFloat("Zoom", &camera.zoom, 0.01f, 1.f);
 
         ImGui::EndTabItem();
     }

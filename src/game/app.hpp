@@ -16,6 +16,8 @@
 #include "game/world/world_objects.hpp"
 #include "game/world/world.hpp"
 
+#include "actor_control_system.hpp"
+
 #include "engine/core/types.hpp"
 
 class App {
@@ -51,6 +53,9 @@ private:
 
     // Resource Manager
     std::shared_ptr<ResourceManager> resource_manager;
+
+    // Systems held by app
+    std::shared_ptr<ActorControlSystem> actor_control_system;
 
     // Game data
     World world;

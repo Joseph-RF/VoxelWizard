@@ -10,6 +10,18 @@ In this section, I'll be writing the series of updates and changes of the projec
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
 
+### [0.2.1]
+
+Update 0.2.1
+
+The Wizard Moves
+
+Camera is no longer tied to keyboard presses but to a target_entity. If said target_entity leaves the camera's
+deadzone, the camera will move to keep it in the deadzone.
+
+View and projection matrices are now OWNED by the camera, and are calculated once per app update. This is because 
+view and projection are needed in multiple places in the game so no reason to calculate it twice within one frame.
+
 ### [0.2.0]
 
 Update 0.2.0
@@ -159,13 +171,15 @@ Not supposed to be very rigid and features will move from one planned update to 
 Some features will be pushed further down the line, others will arrive earlier than expected.
 I suspect many changes won't be planned for entirely.
 
-### [0.2.1]
-
-Commands and moving The Wizard around. Will feature displacement and rotations as well as a Camera Deadzone!
-Wow!
-
-This should hopefully be a shorter update than the previous.
-
 ### [Future]
+
+Why is there a direction enum for Camera and another for Events, surely it could be the same?
+
+Once models start be finalised, consider changing the size of the shader and mesh ids in the
+renderable component. Could halve size from 16 bits to 8 bits if there will never be more than 255 distinct 
+models.
+
+When the camera moves to keep Wizard in deadzone, add a little bit of padding. Make the camera's displacement smooth
+when it adjusts for the deadzone.
 
 Character that moves around, magic, enemies, enemy logic and more!
