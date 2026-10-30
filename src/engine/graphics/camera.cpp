@@ -7,11 +7,11 @@
 
 extern Coordinator g_coordinator;
 
-Camera::Camera(const int& WORLD_SIZE, const int& CHUNK_SIZE, const float& block_side_lenth, float window_x, float window_y) {
+Camera::Camera(float window_x, float window_y) {
 	ortho = true;
 	zoom = 0.38f;
 
-	orbit_radius = WORLD_SIZE * CHUNK_SIZE * block_side_lenth;
+	orbit_radius = Voxel::WORLD_SIZE * Voxel::CHUNK_SIZE * Voxel::BLOCK_LENGTH;
 	orbit_angle = 0.f;
 	yaw = 0.f;
 	pitch = 30.f;
@@ -55,6 +55,17 @@ Camera::Camera(const int& WORLD_SIZE, const int& CHUNK_SIZE, const float& block_
 
 	deadzone_minima = window_size * deadzone_ratio;
 	deadzone_maxima = window_size * (1.0f - deadzone_ratio);
+
+	deadzone_padding = glm::vec2(20.f, 20.f);
+
+	turning_left = false;
+	turning_right = false;
+	max_turning_speed = 8.f;
+
+	translating = false;
+	new_front_distance = 0.f;
+	distance_traveled = 0.f;
+	normalised_translation_direction = glm::vec2(1.0f, 0.f);
 }
 
 void Camera::processMouse(double x_offset, double y_offset) {
@@ -81,8 +92,21 @@ void Camera::processScroll(double x_offset, double y_offset) {
 	}
 }
 
-glm::mat4 Camera::lookAt()
-{
+void Camera::turnLeft() {
+	if (turning_right) { return; }
+	turning_left = true;
+
+	target_angle = orbit_angle - 45.f;
+}
+
+void Camera::turnRight() {
+	if (turning_left) { return; }
+	turning_right = true;
+
+	target_angle = orbit_angle + 45.f;
+}
+
+glm::mat4 Camera::lookAt() {
 	// Argument 1: Position of the camera. NOTE THAT THIS IS REVERSED ON PURPOSE
 	// Argument 2: Direction camera is looking in.
 	// Argument 3: Up direction of the camera
@@ -92,6 +116,13 @@ glm::mat4 Camera::lookAt()
 }
 
 void Camera::update() {
+
+	// Check if camera needs to rotate
+	shouldRotate();
+
+	// Check if the camera needs to translate
+	shouldFollowTarget();
+
 	// Calculate view and projection
 	view = lookAt();
 	if (ortho) {
@@ -189,16 +220,16 @@ void Camera::checkTargetPosition() {
 	glm::vec2 deadzone_diff_window(0.f, 0.f);
 
 	if (target_position_window.x > deadzone_maxima.x) {
-		deadzone_diff_window.x = target_position_window.x - deadzone_maxima.x;
+		deadzone_diff_window.x = target_position_window.x - deadzone_maxima.x + deadzone_padding.x;
 	}
 	else if (target_position_window.x < deadzone_minima.x) {
-		deadzone_diff_window.x = target_position_window.x - deadzone_minima.x;
+		deadzone_diff_window.x = target_position_window.x - deadzone_minima.x - deadzone_padding.x;
 	}
 	if (target_position_window.y > deadzone_maxima.y) {
-		deadzone_diff_window.y = target_position_window.y - deadzone_maxima.y;
+		deadzone_diff_window.y = target_position_window.y - deadzone_maxima.y + deadzone_padding.y;
 	}
 	else if (target_position_window.y < deadzone_minima.y) {
-		deadzone_diff_window.y = target_position_window.y - deadzone_minima.y;
+		deadzone_diff_window.y = target_position_window.y - deadzone_minima.y - deadzone_padding.y;
 	}
 
 	if (deadzone_diff_window.x == 0.f && deadzone_diff_window.y == 0.f) {
@@ -206,16 +237,73 @@ void Camera::checkTargetPosition() {
 	}
 
 	// Target is outside of the deadzone
+	glm::vec2 new_camera_front_window = window_size * 0.5f + deadzone_diff_window;
+	glm::vec3 new_camera_front_world = windowToWorldCoords(new_camera_front_window);
+	glm::vec3 front_diff = new_camera_front_world - front;
+	new_front_distance = glm::length(front_diff);
+	normalised_translation_direction = glm::normalize(glm::vec2(front_diff.x, front_diff.z));
 
-	glm::vec2 new_camera_objective_window = window_size * 0.5f + deadzone_diff_window;
-	glm::vec3 new_camera_objective_world = windowToWorldCoords(new_camera_objective_window);
-	glm::vec3 centre_world = windowToWorldCoords(window_size * 0.5f);
+	translating = true;
+	distance_traveled = 0.f;
+}
 
-	glm::vec3 camera_push_world = new_camera_objective_world - centre_world;
+void Camera::shouldRotate() {
+	if (turning_left) {
+		yaw -= max_turning_speed;
+		if (yaw < target_angle) { yaw = target_angle; }
+		orbit_angle = yaw;
 
-	front += camera_push_world;
-	pos += camera_push_world;
+		pos = glm::vec3(front.x + orbit_radius * sin(glm::radians(orbit_angle)),
+			orbit_height,
+			front.z + orbit_radius * cos(glm::radians(orbit_angle))
+		);
 
-	// Recalculate view with new front and pos
-	view = lookAt();
+		if (orbit_angle == target_angle) {
+			turning_left = false;
+		}
+	}
+	else if (turning_right) {
+		yaw += max_turning_speed;
+		if (yaw > target_angle) { yaw = target_angle; }
+		orbit_angle = yaw;
+
+		pos = glm::vec3(front.x + orbit_radius * sin(glm::radians(orbit_angle)),
+			orbit_height,
+			front.z + orbit_radius * cos(glm::radians(orbit_angle))
+		);
+
+		if (orbit_angle == target_angle) {
+			turning_right = false;
+		}
+	}
+}
+
+void Camera::shouldFollowTarget() {
+	if (translating) {
+
+		float translation_speed = 0.05f * (new_front_distance - distance_traveled);
+
+		glm::vec2 displacement_2D;
+		glm::vec3 displacement_3D;
+
+		distance_traveled += translation_speed;
+		if (distance_traveled >= new_front_distance) {
+			// Camera overshot target
+			float delta_distance = translation_speed - (distance_traveled - new_front_distance);
+			displacement_2D = delta_distance * normalised_translation_direction;
+			displacement_3D = glm::vec3(displacement_2D.x, 0.f, displacement_2D.y);
+
+			front += displacement_3D;
+			pos += displacement_3D;
+
+			translating = false;
+		}
+		else {
+			// Camera has not yet overshot target
+			displacement_2D = translation_speed * normalised_translation_direction;
+			displacement_3D = glm::vec3(displacement_2D.x, 0.f, displacement_2D.y);
+		}
+		front += displacement_3D;
+		pos += displacement_3D;
+	}
 }

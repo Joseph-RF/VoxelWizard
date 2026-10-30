@@ -19,10 +19,12 @@ class Camera
 {
 public:
 	Camera() = delete;
-	Camera(const int& WORLD_SIZE, const int& CHUNK_SIZE, const float& block_side_lenth, float window_x, float window_y);
+	Camera(float window_x, float window_y);
 
 	void processMouse(double x_offset, double y_offset);
 	void processScroll(double x_offset, double y_offset);
+	void turnLeft();
+	void turnRight();
 	glm::mat4 lookAt();
 
 	void update();
@@ -31,6 +33,9 @@ public:
 	Entity getTargetEntity();
 
 	void processScreenResize(float window_x, float window_y);
+
+	glm::vec2 worldToWindowCoords(const glm::vec3& world_position);
+	glm::vec3 windowToWorldCoords(const glm::vec2& window_position);
 
 	// Camera values
 	bool ortho;
@@ -57,15 +62,25 @@ public:
 	float mouse_sensitivity;
 	float scroll_sensitivity;
 
+private:
+	void checkTargetPosition();
+	void shouldRotate();
+	void shouldFollowTarget();
+
 	float deadzone_ratio{ 0.3f };
 	glm::vec2 deadzone_minima;
 	glm::vec2 deadzone_maxima;
+	glm::vec2 deadzone_padding;
 
-private:
-	glm::vec2 worldToWindowCoords(const glm::vec3& world_position);
-	glm::vec3 windowToWorldCoords(const glm::vec2& window_position);
+	bool turning_left;
+	bool turning_right;
+	float max_turning_speed;
+	float target_angle;
 
-	void checkTargetPosition();
+	bool translating;
+	float new_front_distance; // Scalar distance camera must move to reach new front position
+	float distance_traveled; // Scalar distance camera has traveled so far to reach current new front
+	glm::vec2 normalised_translation_direction;
 
 	Entity target_entity;
 	glm::vec2 window_size;

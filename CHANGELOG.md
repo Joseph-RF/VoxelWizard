@@ -4,11 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Released] - 2026-10-12
+## [Released] - 2026-10-30
 
 In this section, I'll be writing the series of updates and changes of the project made
 starting with 0.1.0. I hope to remember all the changes I make as well as the reasons behind
 them as it'll make for a better change log.
+
+### [0.2.2]
+
+Update 0.2.2
+
+Camera Update
+
+Wizard faces the mouse at all times, the camera rotates at discrete intervals and the speed at 
+which the camera follows the entity scales with how far the entity is into the deadzone, AND 
+how close the camera is to it's new position.
+
+Moving the mouse simply rotates The Wizard (or the entity with the CONTROLLABLE component)
+instead of rotating the camera.
+
+Use Q and E to turn the camera around the world
 
 ### [0.2.1]
 
@@ -164,7 +179,7 @@ Main changes with regards to the Infinite Voxel Terrain project:
 function call) by simply adding around 10 lines of code.
 - Removed code that won't be needed in this project that comes from Infinite Voxel Terrain
 
-## [Unreleased] - 2026-10-12
+## [Unreleased] - 2026-10-30
 
 Here will write a vague roadmap of the upcoming updates and changes to the project.
 Not supposed to be very rigid and features will move from one planned update to the next.
@@ -173,13 +188,17 @@ I suspect many changes won't be planned for entirely.
 
 ### [Future]
 
+Ensure that resizing the window doesn't affect core gameplay elements such as the player following the
+cursor.
+
+Consider adding a modulus to orbit angle and yaw to prevent them from overflowing.
+
+Should tie camera turning and translating to dt instead of fps.
+
 Why is there a direction enum for Camera and another for Events, surely it could be the same?
 
 Once models start be finalised, consider changing the size of the shader and mesh ids in the
 renderable component. Could halve size from 16 bits to 8 bits if there will never be more than 255 distinct 
 models.
-
-When the camera moves to keep Wizard in deadzone, add a little bit of padding. Make the camera's displacement smooth
-when it adjusts for the deadzone.
 
 Character that moves around, magic, enemies, enemy logic and more!

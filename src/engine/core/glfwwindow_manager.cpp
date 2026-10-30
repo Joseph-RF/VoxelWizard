@@ -3,8 +3,7 @@
 GLFWWindowManager::GLFWWindowManager(int window_width, int window_height,
                                      std::shared_ptr<EventManager> event_manager)
     : window_width(window_width)
-    , window_height(window_height)
-    , is_mouse_free(false) {
+    , window_height(window_height) {
     window              = nullptr;
     this->event_manager = event_manager;
 }
@@ -67,9 +66,6 @@ bool GLFWWindowManager::createWindow() {
     ImGuiStyle& style = ImGui::GetStyle();
     ImGui_Utility::setStyle(style);
 
-    // Lock the mouse in place into the middle of the window
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
     return true;
 }
 
@@ -92,16 +88,6 @@ void GLFWWindowManager::newImGuiFrame() {
     ImGui::NewFrame();
 }
 
-void GLFWWindowManager::toggleMouse() {
-    if (is_mouse_free) {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        is_mouse_free = false;
-    } else {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        is_mouse_free = true;
-    }
-}
-
 float GLFWWindowManager::getTime() {
     return static_cast<float>(glfwGetTime());
 }
@@ -117,9 +103,8 @@ void GLFWWindowManager::framebufferSizeCallback(GLFWwindow* window, int width, i
 void GLFWWindowManager::mouseCallback(GLFWwindow* window, double mouse_xpos, double mouse_ypos) {
     GLFWWindowManager* manager = static_cast<GLFWWindowManager*>(glfwGetWindowUserPointer(window));
     if (manager && manager->event_manager) {
-        bool turning = !manager->is_mouse_free;
         // Call the input function here
-        manager->event_manager->addMouseMovedEvent(mouse_xpos, mouse_ypos, turning);
+        manager->event_manager->addMouseMovedEvent(mouse_xpos, mouse_ypos);
     }
 }
 
@@ -173,6 +158,10 @@ Key glfwKeyToEnumKey(int GLFW_key) {
         return Key::S;
     case GLFW_KEY_D:
         return Key::D;
+    case GLFW_KEY_Q:
+        return Key::Q;
+    case GLFW_KEY_E:
+        return Key::E;
     case GLFW_KEY_LEFT_CONTROL:
         return Key::L_CTRL;
     case GLFW_KEY_SPACE:

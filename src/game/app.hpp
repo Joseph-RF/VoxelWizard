@@ -30,8 +30,8 @@ public:
 
 private:
     // Window properties
-    int window_x;
-    int window_y;
+    int window_width;
+    int window_height;
     std::unique_ptr<IWindowManager> window_manager;
     std::shared_ptr<EventManager> event_manager;
 
@@ -41,12 +41,12 @@ private:
 
     // Mouse
     bool first_mouse_movement;
-    float last_mouse_xpos;
-    float last_mouse_ypos;
     bool mouse_pressed;
+    glm::vec2 previous_mouse_pos;
+    glm::vec2 current_mouse_pos;
 
     // Camera
-    Camera camera;
+    std::shared_ptr<Camera> camera;
 
     // Renderer
     Renderer renderer;
@@ -88,7 +88,7 @@ private:
     void renderImGUI();
 
     // Pseudo updating functions
-    void processMouseMovement(float mouse_xpos, float mouse_ypos);
+    void processMouseMovement(const glm::vec2& mouse_position);
 
     void processScreenResize(float new_window_x, float new_window_y);
 

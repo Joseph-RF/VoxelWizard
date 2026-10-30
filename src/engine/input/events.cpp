@@ -12,6 +12,8 @@ EventManager::EventManager() {
     pressed_keys[Key::A]      = false;
     pressed_keys[Key::S]      = false;
     pressed_keys[Key::D]      = false;
+    pressed_keys[Key::Q]      = false;
+    pressed_keys[Key::E]      = false;
     pressed_keys[Key::L_CTRL] = false;
     pressed_keys[Key::SPACE]  = false;
     pressed_keys[Key::M]      = false;
@@ -69,6 +71,20 @@ void EventManager::keyEvent(Key key, bool pressed) {
     case Key::D:
         pressed_keys[Key::D] = pressed;
         break;
+    case Key::Q:
+        if (pressed_keys[Key::Q] && !pressed) {
+            // Button has just been released
+            events.emplace(Action::TURN_LEFT, 0.0f, 0.0f, 0.0f, 0.0f);
+        }
+        pressed_keys[Key::Q] = pressed;
+        break;
+    case Key::E:
+        if (pressed_keys[Key::E] && !pressed) {
+            // Button has just been released
+            events.emplace(Action::TURN_RIGHT, 0.0f, 0.0f, 0.0f, 0.0f);
+        }
+        pressed_keys[Key::E] = pressed;
+        break;
     case Key::L_CTRL:
         pressed_keys[Key::L_CTRL] = pressed;
         break;
@@ -87,12 +103,8 @@ void EventManager::keyEvent(Key key, bool pressed) {
     }
 }
 
-void EventManager::addMouseMovedEvent(float mouse_xpos, float mouse_ypos, bool turning) {
-    if (turning) {
-        events.emplace(Action::TURN, mouse_xpos, mouse_ypos, 0.0f, 0.0f);
-    } else {
-        events.emplace(Action::MOVE_CURSOR, mouse_xpos, mouse_ypos, 0.0f, 0.0f);
-    }
+void EventManager::addMouseMovedEvent(float mouse_xpos, float mouse_ypos) {
+    events.emplace(Action::MOVE_CURSOR, mouse_xpos, mouse_ypos, 0.0f, 0.0f);
 }
 
 void EventManager::addScrollEvent(float scroll_x, float scroll_y) {

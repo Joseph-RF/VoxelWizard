@@ -24,13 +24,11 @@ public:
     bool shouldWindowClose() override;
 
     void newImGuiFrame() override;
-    void toggleMouse() override;
     float getTime() override;
 
 private:
     int window_width;
     int window_height;
-    bool is_mouse_free;
 
     GLFWwindow* window;
 

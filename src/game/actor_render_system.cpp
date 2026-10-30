@@ -27,7 +27,13 @@ void ActorRenderSystem::render() {
         shader.use();
 
         glm::mat4 model(1.0);
+        glm::vec4 rotation(transform.rotation.x, transform.rotation.y, transform.rotation.z, 0.0f);
         model = glm::translate(model, transform.position);
+
+        model = glm::rotate(model, rotation.x, orientation[0]);
+        model = glm::rotate(model, rotation.y, orientation[1]);
+        model = glm::rotate(model, rotation.z, orientation[2]);
+
         model = glm::scale(model, transform.scale);
         shader.setMat("model", model);
 

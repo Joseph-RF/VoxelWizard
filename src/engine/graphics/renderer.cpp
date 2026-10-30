@@ -282,10 +282,6 @@ void Renderer::renderScene(const RenderContext& render_context) {
 }
 
 void Renderer::renderActors() {
-
-    // TODO:
-    // Use the actor render system to render actors
-    // Probably just a simple actor render system call
     m_actor_render_system->render();
 }
 

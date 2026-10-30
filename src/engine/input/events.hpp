@@ -11,7 +11,8 @@ enum class Action {
     MOVE_RIGHT,
     MOVE_UP,
     MOVE_DOWN,
-    TURN,
+    TURN_LEFT,
+    TURN_RIGHT,
     MOVE_CURSOR,
     ZOOM,
     L_CLICK,
@@ -23,7 +24,7 @@ enum class Action {
 };
 
 // Consider moving this somewhere else
-enum class Key { W, A, S, D, L_CTRL, SPACE, M, ESC, OTHER };
+enum class Key { W, A, S, D, Q, E, L_CTRL, SPACE, M, ESC, OTHER };
 
 enum class MouseButton { LEFT, RIGHT, OTHER };
 
@@ -45,7 +46,7 @@ public:
 
     void addScreenResizeEvent(int width, int height);
     void keyEvent(Key key, bool pressed);
-    void addMouseMovedEvent(float mouse_xpos, float mouse_ypos, bool turning);
+    void addMouseMovedEvent(float mouse_xpos, float mouse_ypos);
     void addScrollEvent(float scroll_x, float scroll_y);
     void addMouseClickEvent(MouseButton button, bool pressed);
 

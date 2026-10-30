@@ -8,14 +8,15 @@
 
 Coordinator g_coordinator;
 
-App::App(int window_x, int window_y)
-    : renderer(window_x, window_y), 
-      camera(Voxel::WORLD_SIZE, Voxel::CHUNK_SIZE, Voxel::BLOCK_LENGTH, window_x, window_y) {
+App::App(int window_x, int window_y) : renderer(window_x, window_y) {
     // Window properties
-    this->window_x = window_x;
-    this->window_y = window_y;
+    this->window_width = window_x;
+    this->window_height = window_y;
     event_manager  = std::make_shared<EventManager>();
     window_manager = makeGLFWWindowManager(window_x, window_y, event_manager);
+
+    // Camera
+    camera = std::make_shared<Camera>(window_x, window_y);
 
     // Timings
     delta_time = 0.0f;
@@ -23,8 +24,8 @@ App::App(int window_x, int window_y)
 
     // Mouse
     first_mouse_movement = true;
-    last_mouse_xpos      = window_x / 2.f;
-    last_mouse_ypos      = window_y / 2.f;
+    previous_mouse_pos = glm::vec2(window_width, window_height) * 0.5f;
+    current_mouse_pos = glm::vec2(window_width, window_height) * 0.5f;
     mouse_pressed        = false;
 
     // Resource manager
@@ -94,7 +95,7 @@ void App::initSystems() {
         signature.set(g_coordinator.getComponentType<Controllable>());
         g_coordinator.setSystemSignature<ActorControlSystem>(signature);
     }
-    actor_control_system->init();
+    actor_control_system->init(camera);
     // Set the rest of the systems
 }
 
@@ -123,7 +124,7 @@ void App::initEntities() {
 
     g_coordinator.addComponent<Transform>(player, 
         Transform{
-            {0.0f, 10.f, 0.0f},
+            {0.0f, 2.f, 0.0f},
             {0.0f, 0.0f, 0.0f},
             {1.0f, 1.0f, 1.0f}
         }
@@ -139,7 +140,7 @@ void App::initEntities() {
     g_coordinator.addComponent<Controllable>(player, Controllable{250.0f});
 
     // Set the camera's target
-    camera.setTargetEntity(player);
+    camera->setTargetEntity(player);
 }
 
 void App::update() {
@@ -149,11 +150,11 @@ void App::update() {
 
     processEvents();
 
-    actor_control_system->update(delta_time, camera.front - camera.pos, camera.world_space_up);
+    actor_control_system->update(delta_time, current_mouse_pos);
 
     // Run the physics here
 
-    camera.update();
+    camera->update();
 
     window_manager->update();
 
@@ -190,29 +191,23 @@ void App::processEvents() {
         case Action::MOVE_DOWN:
             //camera.processKeyboard(DOWN, delta_time);
             break;
-        case Action::TURN: {
-            float mouse_xoffset = event_manager->events.front().mouse_xpos - last_mouse_xpos;
-            float mouse_yoffset = event_manager->events.front().mouse_ypos - last_mouse_ypos;
-            last_mouse_xpos += mouse_xoffset;
-            last_mouse_ypos += mouse_yoffset;
-
-            if (!first_mouse_movement) {
-                camera.processMouse(mouse_xoffset, mouse_yoffset);
-            } else {
-                first_mouse_movement = false;
-            }
+        case Action::TURN_LEFT: {
+            camera->turnLeft();
+            break;
+        }
+        case Action::TURN_RIGHT: {
+            camera->turnRight();
             break;
         }
         case Action::MOVE_CURSOR: {
-            float mouse_xoffset = event_manager->events.front().mouse_xpos - last_mouse_xpos;
-            float mouse_yoffset = event_manager->events.front().mouse_ypos - last_mouse_ypos;
-            last_mouse_xpos += mouse_xoffset;
-            last_mouse_ypos += mouse_yoffset;
-            processMouseMovement(last_mouse_xpos, last_mouse_ypos);
+            current_mouse_pos.x = event_manager->events.front().mouse_xpos;
+            current_mouse_pos.y = event_manager->events.front().mouse_ypos;
+            previous_mouse_pos = current_mouse_pos;
+            processMouseMovement(current_mouse_pos);
             break;
         }
         case Action::ZOOM:
-            camera.processScroll(event_manager->events.front().scroll_x,
+            camera->processScroll(event_manager->events.front().scroll_x,
                                          event_manager->events.front().scroll_y);
             break;
         case Action::L_CLICK:
@@ -229,8 +224,7 @@ void App::processEvents() {
             std::cout << "Right button being held" << std::endl;
             break;
         case Action::TOGGLE_MOUSE:
-            window_manager->toggleMouse();
-            first_mouse_movement = true;
+            // TODO: Get rid of this
             break;
         default:
             std::cout << "Action does not have defined behaviour in App::runActions" << std::endl;
@@ -243,7 +237,7 @@ void App::render() {
     window_manager->newImGuiFrame();
 
     // Render scene
-    renderer.render(RenderContext{camera, world});
+    renderer.render(RenderContext{*camera, world});
 
     // After drawing OpenGL objects, draw ImGUI
     renderImGUI();
@@ -256,7 +250,7 @@ void App::render() {
 
 void App::renderImGUI() {
     ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(window_x * 0.15f, window_y));
+    ImGui::SetNextWindowSize(ImVec2(window_width * 0.15f, window_height));
     ImGui::Begin("ImGUI Window", nullptr);
 
     ImGui::BeginTabBar("Settings#left_tabs_bar");
@@ -269,11 +263,11 @@ void App::renderImGUI() {
 
         ImGui::Text("Camera position");
         
-        ImGui::InputFloat("x pos", &camera.pos.x, 0.25f, 1.0f,
+        ImGui::InputFloat("x pos", &camera->pos.x, 0.25f, 1.0f,
                   "%.2f");
-        ImGui::InputFloat("y pos", &camera.pos.y, 0.25f, 1.0f,
+        ImGui::InputFloat("y pos", &camera->pos.y, 0.25f, 1.0f,
           "%.2f");
-        ImGui::InputFloat("z pos", &camera.pos.z, 0.25f, 1.0f,
+        ImGui::InputFloat("z pos", &camera->pos.z, 0.25f, 1.0f,
           "%.2f");
 
         ImGui::NewLine();
@@ -305,10 +299,10 @@ void App::renderImGUI() {
         ImGui::Checkbox("Fill Polygons", &renderer.fill_polygons);
 
         ImGui::Text("Toggle Camera Projection");
-        ImGui::Checkbox("Perspective or Orthographic", &camera.ortho);
+        ImGui::Checkbox("Perspective or Orthographic", &camera->ortho);
 
         ImGui::SetNextItemWidth(120.f);
-        ImGui::SliderFloat("Zoom", &camera.zoom, 0.01f, 1.f);
+        ImGui::SliderFloat("Zoom", &camera->zoom, 0.01f, 1.f);
 
         ImGui::EndTabItem();
     }
@@ -317,15 +311,15 @@ void App::renderImGUI() {
     ImGui::End();
 }
 
-void App::processMouseMovement(float mouse_xpos, float mouse_ypos) {
+void App::processMouseMovement(const glm::vec2& mouse_position) {
     // Process mouse movement here
 }
 
 void App::processScreenResize(float new_window_x, float new_window_y) {
-    window_x = static_cast<int>(new_window_x);
-    window_y = static_cast<int>(new_window_y);
+    window_width = static_cast<int>(new_window_x);
+    window_height = static_cast<int>(new_window_y);
 
-    renderer.processScreenResize(window_x, window_y);
+    renderer.processScreenResize(window_width, window_height);
 }
 
 void App::initSceneTEST() {
